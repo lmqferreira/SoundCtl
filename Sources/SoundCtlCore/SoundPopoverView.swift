@@ -28,8 +28,8 @@ struct SoundPopoverView: View {
             Divider().padding(.horizontal, 13).padding(.top, 7)
 
             Text("Output")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.primary)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
                 .padding(.leading, 14)
                 .padding(.top, 7)
                 .padding(.bottom, 3)
