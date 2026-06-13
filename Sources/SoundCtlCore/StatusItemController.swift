@@ -72,8 +72,11 @@ final class StatusItemController {
     /// zero/mute, otherwise the variable 3-arc speaker tracking the level.
     private func updateIcon(value: Float, muted: Bool) {
         guard let button = statusItem.button else { return }
-        let config = NSImage.SymbolConfiguration(pointSize: Self.iconPointSize, weight: .regular)
         let headphones = audio.defaultDevice?.isHeadphones ?? false
+        // The headphones glyph is optically larger than the speaker at the same
+        // point size, so render it a touch smaller to match the native menu bar.
+        let pointSize = headphones ? Self.headphonesPointSize : Self.iconPointSize
+        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .regular)
         let symbol = IconSymbols.statusBar(muted: muted, headphones: headphones)
         let image: NSImage?
         if headphones || muted {
@@ -91,6 +94,7 @@ final class StatusItemController {
     }
 
     private static let iconPointSize: CGFloat = 15
+    private static let headphonesPointSize: CGFloat = 13.5
 
     // MARK: - Panel
 
