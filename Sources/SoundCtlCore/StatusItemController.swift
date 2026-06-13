@@ -1,4 +1,11 @@
 import AppKit
+import ServiceManagement
+
+/// How the menu-bar item is shown, mirroring the native right-click options.
+enum MenuBarVisibility: String {
+    case alwaysShow
+    case showWhenActive
+}
 
 /// Owns the menu-bar status item and a key panel hosting the Sound content.
 /// A key window is required so the native NSSlider renders active (blue); the
@@ -21,7 +28,8 @@ final class StatusItemController {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.target = self
-            button.action = #selector(togglePanel)
+            button.action = #selector(handleClick)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
         model.onVolumeStateChange = { [weak self] value, muted in
@@ -96,10 +104,102 @@ final class StatusItemController {
     private static let iconPointSize: CGFloat = 15
     private static let headphonesPointSize: CGFloat = 14
 
-    // MARK: - Panel
+    // MARK: - Clicks
 
-    @objc private func togglePanel() {
+    @objc private func handleClick() {
         guard let button = statusItem.button else { return }
-        panel.toggle(relativeTo: button)
+        let event = NSApp.currentEvent
+        let isSecondary = event?.type == .rightMouseUp
+            || (event?.modifierFlags.contains(.control) ?? false)
+        if isSecondary {
+            showContextMenu(from: button)
+        } else {
+            panel.toggle(relativeTo: button)
+        }
+    }
+
+    // MARK: - Right-click menu (menu-bar visibility + login + quit)
+
+    private func showContextMenu(from button: NSStatusBarButton) {
+        if panel.isShown { panel.close() }
+        let menu = NSMenu()
+
+        let always = NSMenuItem(title: "Always Show In Menu Bar",
+                                action: #selector(setAlwaysShow), keyEquivalent: "")
+        always.target = self
+        always.state = visibility == .alwaysShow ? .on : .off
+
+        let active = NSMenuItem(title: "Show When Active",
+                                action: #selector(setShowWhenActive), keyEquivalent: "")
+        active.target = self
+        active.state = visibility == .showWhenActive ? .on : .off
+
+        let hide = NSMenuItem(title: "Don't Show in Menu Bar",
+                              action: #selector(setDontShow), keyEquivalent: "")
+        hide.target = self
+
+        let login = NSMenuItem(title: "Open at Login",
+                               action: #selector(toggleOpenAtLogin), keyEquivalent: "")
+        login.target = self
+        login.state = isOpenAtLoginEnabled ? .on : .off
+
+        let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
+        quit.target = self
+
+        for item in [always, active, hide] { menu.addItem(item) }
+        menu.addItem(.separator())
+        menu.addItem(login)
+        menu.addItem(.separator())
+        menu.addItem(quit)
+
+        menu.popUp(positioning: nil,
+                   at: NSPoint(x: 0, y: button.bounds.height + 5),
+                   in: button)
+    }
+
+    private var visibility: MenuBarVisibility {
+        get {
+            MenuBarVisibility(rawValue: UserDefaults.standard.string(forKey: "menuBarVisibility") ?? "")
+                ?? .alwaysShow
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "menuBarVisibility") }
+    }
+
+    @objc private func setAlwaysShow() {
+        visibility = .alwaysShow
+        statusItem.isVisible = true
+    }
+
+    @objc private func setShowWhenActive() {
+        visibility = .showWhenActive
+        statusItem.isVisible = true
+    }
+
+    /// Hides the icon for this session; it returns on next launch (we don't
+    /// persist the hidden state, so the user can always relaunch to restore it).
+    @objc private func setDontShow() {
+        statusItem.isVisible = false
+    }
+
+    // MARK: - Open at Login (ServiceManagement)
+
+    private var isOpenAtLoginEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    @objc private func toggleOpenAtLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            NSLog("SoundCtl: Open at Login toggle failed: \(error)")
+        }
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
     }
 }
