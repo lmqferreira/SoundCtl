@@ -53,9 +53,24 @@ final class StatusItemController {
 
         refreshIcon()
 
-        // Take over the hardware volume keys for DDC displays (no-op until the
-        // user grants Accessibility; the right-click menu offers to enable it).
-        hwVolume.start()
+        // Take over the hardware volume keys for DDC displays. If Accessibility
+        // isn't granted yet, keep retrying so it starts working as soon as the
+        // user enables it (no relaunch needed).
+        Log.write("launch: starting volume-key handling")
+        beginVolumeKeys()
+    }
+
+    private var permissionTimer: Timer?
+
+    private func beginVolumeKeys() {
+        if hwVolume.start() { return }
+        permissionTimer?.invalidate()
+        permissionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            if self.hwVolume.isActive || self.hwVolume.start() {
+                timer.invalidate()
+            }
+        }
     }
 
     // MARK: - Highlight

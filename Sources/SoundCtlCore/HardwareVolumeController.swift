@@ -1,5 +1,6 @@
 import AppKit
 import CoreAudio
+import ApplicationServices
 
 /// Owns the hardware volume-key handling: when the current output is a
 /// DDC-controlled display (which macOS can't adjust natively) and BetterDisplay
@@ -39,19 +40,28 @@ final class HardwareVolumeController {
 
     /// Installs the key tap. Returns false when Accessibility isn't granted.
     @discardableResult
-    func start() -> Bool { monitor.start() }
+    func start() -> Bool {
+        let trusted = AXIsProcessTrusted()
+        let ok = monitor.start()
+        Log.write("hwVolume.start trusted=\(trusted) tapInstalled=\(ok) active=\(monitor.isActive)")
+        return ok
+    }
     var isActive: Bool { monitor.isActive }
+    var isTrusted: Bool { AXIsProcessTrusted() }
     func stop() { monitor.stop() }
 
     // MARK: - Routing
 
     /// Returns true to consume the key (we handled it), false to pass it through.
     private func handle(key: VolumeKeyMonitor.Key, isDown: Bool, isRepeat: Bool) -> Bool {
-        guard let device = audio.defaultDevice,
-              let display = ddc.display(matching: device),
-              !betterDisplay.isRunning else {
-            return false
+        let device = audio.defaultDevice
+        let display = device.flatMap { ddc.display(matching: $0) }
+        let bd = betterDisplay.isRunning
+        let shouldHandle = display != nil && !bd
+        if isDown {
+            Log.write("key=\(key) down repeat=\(isRepeat) device=\(device?.name ?? "nil") hasDDC=\(display != nil) betterDisplay=\(bd) -> handle=\(shouldHandle)")
         }
+        guard let device, let display, !bd else { return false }
         guard isDown else { return true }   // consume the matching key-up too
 
         ensureCache(device: device, display: display)

@@ -107,8 +107,10 @@ final class VolumeHUD {
         let size = panel.frame.size
         let screen = (NSScreen.main ?? NSScreen.screens.first)
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let origin = NSPoint(x: visible.midX - size.width / 2,
-                             y: visible.minY + 140)
+        // Top-right, just under the menu bar — matching the macOS volume OSD.
+        let margin: CGFloat = 16
+        let origin = NSPoint(x: visible.maxX - size.width - margin,
+                             y: visible.maxY - size.height - 8)
         panel.setFrameOrigin(origin)
         panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
