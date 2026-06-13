@@ -17,7 +17,7 @@ struct AudioDevice: Equatable {
     var iconSymbol: String {
         switch transport {
         case kAudioDeviceTransportTypeBuiltIn:
-            return "laptopcomputer"
+            return "macbook"
         case kAudioDeviceTransportTypeDisplayPort,
              kAudioDeviceTransportTypeHDMI:
             return "display"
