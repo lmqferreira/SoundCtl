@@ -18,11 +18,43 @@ public enum AppMain {
             runDDCTest(arguments: arguments)
             return
         }
+        if arguments.contains("--debug-popover") {
+            runDebugPopover(arguments: arguments)
+            return
+        }
 
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
         app.setActivationPolicy(.accessory)
+        app.run()
+    }
+
+    /// Shows the real two-window popover at a fixed point and screenshots it, so
+    /// the rendering (e.g. the slider knob) can be inspected. Debug only.
+    private static func runDebugPopover(arguments: [String]) {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        let audio = AudioController()
+        let ddc = DDCController()
+        let coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
+        let model = PopoverModel(audio: audio, coordinator: coordinator)
+        let panel = PanelController(model: model)
+
+        let out = arguments.first(where: { $0.hasPrefix("--out=") })?
+            .replacingOccurrences(of: "--out=", with: "") ?? "/tmp/soundctl_popover.png"
+
+        DispatchQueue.main.async {
+            panel.debugShow(at: NSPoint(x: 500, y: 500))
+        }
+        Thread.detachNewThread {
+            Thread.sleep(forTimeInterval: 1.5)
+            let t = Process()
+            t.launchPath = "/usr/sbin/screencapture"
+            t.arguments = ["-x", out]
+            try? t.run(); t.waitUntilExit()
+            exit(0)
+        }
         app.run()
     }
 

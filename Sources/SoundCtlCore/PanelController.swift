@@ -75,17 +75,30 @@ final class PanelController {
     }
 
     func show(relativeTo button: NSStatusBarButton) {
-        model.reload()
-        let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: size)
-
         guard let buttonWindow = button.window else { return }
         let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let visible = (buttonWindow.screen ?? NSScreen.main)?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let size = layoutContent()
         let origin = Self.computeOrigin(buttonFrame: buttonFrame, contentSize: size, visibleFrame: visible)
-        let frame = NSRect(origin: origin, size: size)
+        present(at: origin, size: size, observeResign: true)
+    }
 
+    /// Debug helper: show the popover at a fixed screen origin and keep it open.
+    func debugShow(at origin: NSPoint) {
+        let size = layoutContent()
+        present(at: origin, size: size, observeResign: false)
+    }
+
+    private func layoutContent() -> NSSize {
+        model.reload()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: size)
+        return size
+    }
+
+    private func present(at origin: NSPoint, size: NSSize, observeResign: Bool) {
+        let frame = NSRect(origin: origin, size: size)
         glassWindow.setFrame(frame, display: true)
         contentWindow.setFrame(frame, display: true)
         if glassWindow.parent == nil {
@@ -94,13 +107,16 @@ final class PanelController {
 
         contentWindow.makeKeyAndOrderFront(nil)
         contentWindow.makeMain()
+        contentWindow.makeFirstResponder(nil)   // no keyboard focus ring on the slider
         NSApp.activate(ignoringOtherApps: true)
 
         isShown = true
         onVisibilityChanged?(true)
-        resignObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: contentWindow, queue: .main) { [weak self] _ in
-            self?.close()
+        if observeResign {
+            resignObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResignKeyNotification, object: contentWindow, queue: .main) { [weak self] _ in
+                self?.close()
+            }
         }
     }
 

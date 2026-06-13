@@ -46,6 +46,7 @@ struct SoundPopoverView: View {
                 .padding(.bottom, 1)
         }
         .frame(width: Self.contentWidth, alignment: .leading)
+        .noFocusEffect()
     }
 
     private var volumeRow: some View {
@@ -135,4 +136,16 @@ private func hoverPill(_ hover: Bool) -> some View {
     RoundedRectangle(cornerRadius: 6)
         .fill(Color(white: 0.5, opacity: hover ? 0.22 : 0))
         .padding(.horizontal, 6)
+}
+
+extension View {
+    /// Disables the keyboard focus ring (the blue ring around the slider knob);
+    /// native popover controls don't show one. No-op before macOS 14.
+    @ViewBuilder func noFocusEffect() -> some View {
+        if #available(macOS 14.0, *) {
+            self.focusEffectDisabled()
+        } else {
+            self
+        }
+    }
 }
