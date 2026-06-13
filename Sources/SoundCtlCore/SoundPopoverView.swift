@@ -11,8 +11,14 @@ struct SoundPopoverView: View {
 
     static let contentWidth: CGFloat = 307
 
-    /// Measured flanking-speaker colour from the native popover.
-    private let flankColor = Color(.sRGB, red: 0x38 / 255.0, green: 0x40 / 255.0, blue: 0x57 / 255.0)
+    /// Flanking-speaker colour, adapting per appearance (measured #384057 in
+    /// light; lighter in dark so the glyphs don't stay dark on the dark glass).
+    private let flankColor = Color(nsColor: NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        return isDark
+            ? NSColor(srgbRed: 0xAE / 255.0, green: 0xB0 / 255.0, blue: 0xB8 / 255.0, alpha: 1)
+            : NSColor(srgbRed: 0x38 / 255.0, green: 0x40 / 255.0, blue: 0x57 / 255.0, alpha: 1)
+    })
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -84,12 +90,21 @@ struct DeviceRowView: View {
     let selected: Bool
     @State private var hover = false
 
+    /// Unselected device circle, tuned per appearance (raising a mid-grey's
+    /// opacity lightens it over dark glass, so light/dark need opposite values).
+    private static let unselectedCircle = Color(nsColor: NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        return isDark
+            ? NSColor(white: 0.5, alpha: 0.18)
+            : NSColor(white: 0.5, alpha: 0.25)
+    })
+
     var body: some View {
         HStack(spacing: 9) {
             ZStack {
                 Circle()
                     .fill(selected ? AnyShapeStyle(Color.accentColor)
-                                   : AnyShapeStyle(Color(white: 0.5, opacity: 0.25)))
+                                   : AnyShapeStyle(Self.unselectedCircle))
                     .frame(width: 26, height: 26)
                 Image(systemName: item.symbol)
                     .font(.system(size: 15))
