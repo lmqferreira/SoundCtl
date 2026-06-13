@@ -1,52 +1,60 @@
 import AppKit
 
-/// Owns the menu-bar status item and hosts the Sound content inside a native
-/// NSMenu (statusItem.menu auto-display). This gives the genuine translucent
-/// menu material, the persistent button highlight, native positioning and
-/// dismissal — none of which a hand-rolled panel reproduces. (Rectangle-style.)
-final class StatusItemController: NSObject, NSMenuDelegate {
+/// Owns the menu-bar status item and a key panel hosting the Sound content.
+/// A key window is required so the native NSSlider renders active (blue); the
+/// panel also gives us the exact right/left placement and the Liquid Glass
+/// material via the content view.
+final class StatusItemController {
     private let statusItem: NSStatusItem
-    private let menu = NSMenu()
-    private let contentItem = NSMenuItem()
 
     private let audio = AudioController()
     private let ddc = DDCController()
     private let coordinator: VolumeCoordinator
     private let popoverVC: SoundPopoverViewController
+    private let panel: PanelController
 
-    override init() {
+    init() {
         coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
         popoverVC = SoundPopoverViewController(audio: audio, coordinator: coordinator)
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        super.init()
+        panel = PanelController(viewController: popoverVC)
 
-        _ = popoverVC.view
-        contentItem.view = popoverVC.view
-        menu.addItem(contentItem)
-        menu.delegate = self
-        statusItem.menu = menu
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(togglePanel)
+        }
 
         popoverVC.onVolumeStateChange = { [weak self] value, muted in
             self?.updateIcon(value: value, muted: muted)
         }
         popoverVC.onRequestClose = { [weak self] in
-            self?.menu.cancelTracking()
+            self?.panel.close()
+        }
+        panel.onVisibilityChanged = { [weak self] shown in
+            self?.setHighlighted(shown)
         }
 
-        audio.onDeviceListChange = { [weak self] in self?.refreshIcon() }
-        audio.onVolumeChange = { [weak self] in self?.refreshIcon() }
+        audio.onDeviceListChange = { [weak self] in
+            guard let self else { return }
+            if self.panel.isShown { self.popoverVC.rebind() } else { self.refreshIcon() }
+        }
+        audio.onVolumeChange = { [weak self] in
+            guard let self else { return }
+            if self.panel.isShown { self.popoverVC.refreshVolumeOnly() } else { self.refreshIcon() }
+        }
 
         refreshIcon()
     }
 
-    // MARK: - NSMenuDelegate
+    // MARK: - Highlight
 
-    func menuWillOpen(_ menu: NSMenu) {
-        audio.refreshDevices()
-        popoverVC.rebind()
-        let size = popoverVC.view.fittingSize
-        popoverVC.view.setFrameSize(size)
-        popoverVC.view.layoutSubtreeIfNeeded()
+    private func setHighlighted(_ highlighted: Bool) {
+        guard let button = statusItem.button else { return }
+        if highlighted {
+            DispatchQueue.main.async { button.highlight(true) }
+        } else {
+            button.highlight(false)
+        }
     }
 
     // MARK: - Icon
@@ -60,8 +68,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         updateIcon(value: state.value, muted: state.mutedLook)
     }
 
-    /// The menu-bar glyph is always `speaker.wave.3.fill` rendered as a variable
-    /// symbol (constant width), or `speaker.slash.fill` at zero/mute.
+    /// Always `speaker.wave.3.fill` as a variable symbol (constant width), or
+    /// `speaker.slash.fill` at zero/mute.
     private func updateIcon(value: Float, muted: Bool) {
         guard let button = statusItem.button else { return }
         let config = NSImage.SymbolConfiguration(pointSize: Self.iconPointSize, weight: .regular)
@@ -78,8 +86,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
         image?.isTemplate = true
         button.image = image
+        if panel.isShown { button.highlight(true) }
     }
 
-    /// Tuned to match the native menu-bar speaker glyph size.
     private static let iconPointSize: CGFloat = 15
+
+    // MARK: - Panel
+
+    @objc private func togglePanel() {
+        guard let button = statusItem.button else { return }
+        panel.toggle(relativeTo: button)
+    }
 }

@@ -30,6 +30,7 @@ final class SoundPopoverViewController: NSViewController {
 
     private var isUserAdjusting = false
     private var displayedDeviceIDs: [AudioDeviceID] = []
+    private var contentHost: NSView!
 
     init(audio: AudioController, coordinator: VolumeCoordinator) {
         self.audio = audio
@@ -39,14 +40,41 @@ final class SoundPopoverViewController: NSViewController {
 
     required init?(coder: NSCoder) { fatalError() }
 
+    /// The popover's natural size (driven by the content), independent of the
+    /// glass wrapper.
+    var contentSize: NSSize { contentHost?.fittingSize ?? NSSize(width: contentWidth, height: 240) }
+
     override func loadView() {
-        // Transparent container — the hosting NSMenu provides the native frosted
-        // material, rounding and shadow (a hand-rolled NSVisualEffectView can't
-        // match native's translucency).
-        let root = NSView()
-        root.translatesAutoresizingMaskIntoConstraints = false
-        view = root
-        buildLayout(in: root)
+        let host = NSView()
+        host.translatesAutoresizingMaskIntoConstraints = false
+        buildLayout(in: host)
+        contentHost = host
+
+        if #available(macOS 26.0, *) {
+            // Real Liquid Glass material (macOS 26): rounding is native via
+            // cornerRadius — no masking hacks, and controls inside render active
+            // when the hosting window is key.
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = 13
+            glass.contentView = host
+            view = glass
+        } else {
+            let effect = NSVisualEffectView()
+            effect.material = .popover
+            effect.blendingMode = .behindWindow
+            effect.state = .active
+            effect.wantsLayer = true
+            effect.layer?.cornerRadius = 13
+            host.translatesAutoresizingMaskIntoConstraints = false
+            effect.addSubview(host)
+            NSLayoutConstraint.activate([
+                host.leadingAnchor.constraint(equalTo: effect.leadingAnchor),
+                host.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
+                host.topAnchor.constraint(equalTo: effect.topAnchor),
+                host.bottomAnchor.constraint(equalTo: effect.bottomAnchor)
+            ])
+            view = effect
+        }
     }
 
     override func viewWillAppear() {

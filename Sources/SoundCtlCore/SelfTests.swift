@@ -172,16 +172,17 @@ public enum SelfTests {
         check("normal volume is not muted",
               !VolumeCoordinator.isMutedLook(value: 0.5, hardwareMuted: false))
 
-        // MARK: NSMenu hosting (native material + highlight + positioning)
-        print("[menu]")
-        let hostMenu = NSMenu()
-        let item = NSMenuItem()
-        item.view = vc.view
-        hostMenu.addItem(item)
-        check("content is hosted in a menu item view", hostMenu.items.first?.view === vc.view)
-        check("hosted content keeps native width", abs(vc.view.fittingSize.width - 307) < 0.5)
-        check("content root is transparent (lets native menu material show)",
-              !(vc.view is NSVisualEffectView))
+        // MARK: Popover placement + content sizing
+        print("[placement]")
+        let visible = NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let content = NSSize(width: 307, height: 232)
+        let midIcon = NSRect(x: 600, y: 876, width: 24, height: 24)
+        let oMid = PanelController.computeOrigin(buttonFrame: midIcon, contentSize: content, visibleFrame: visible)
+        check("left-aligns to icon when there's room", abs(oMid.x - midIcon.minX) < 0.5)
+        let rightIcon = NSRect(x: 1400, y: 876, width: 24, height: 24)
+        let oRight = PanelController.computeOrigin(buttonFrame: rightIcon, contentSize: content, visibleFrame: visible)
+        check("flips to right-align near the edge", abs((oRight.x + content.width) - rightIcon.maxX) < 0.5)
+        check("content size is 307pt wide", abs(vc.contentSize.width - 307) < 0.5)
 
         print("\nResult: \(passes) passed, \(failures) failed, \(skips) skipped")
         return failures

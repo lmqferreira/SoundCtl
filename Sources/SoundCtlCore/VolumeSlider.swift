@@ -47,9 +47,10 @@ final class VolumeSlider: NSSlider {
         minValue = 0
         maxValue = 1
         isContinuous = true
-        // The OS renders the accent-coloured fill (with the native press states
-        // and translucent knob reflection) when a track fill colour is set.
-        trackFillColor = .controlAccentColor
+        // Use a STATIC accent colour (resolved to sRGB) for the fill: inside an
+        // NSMenu the window is never key, so the dynamic controlAccentColor would
+        // be substituted with grey. A static colour keeps the native blue.
+        trackFillColor = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? .systemBlue
         target = self
         action = #selector(sliderChanged)
     }
