@@ -1,38 +1,68 @@
 import AppKit
+import SwiftUI
 
-/// A borderless panel that can become the *key* window. Key status is required
-/// for AppKit controls (the NSSlider) to render in their active appearance —
-/// an NSMenu's window is never key, which is why the slider looked grey there.
-final class KeyablePanel: NSPanel {
+/// A borderless window that can become key AND main — required so the SwiftUI
+/// slider renders with its active accent fill (a child/non-main window leaves it
+/// grey until clicked).
+final class KeyableWindow: NSWindow {
     override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }
 
-/// Hosts the Sound content in a key panel, right-aligned-with-fallback to the
-/// status item, and dismisses when it loses key (outside click).
+/// Hosts the Sound popover using the validated two-window recipe:
+///   • a glass window (real NSGlassEffectView, the exact native material), and
+///   • a transparent content window layered ON TOP hosting the SwiftUI view.
+/// The slider lives outside the glass view tree, so it doesn't pick up the
+/// Liquid-Glass knob border; the content window is the key/main parent so the
+/// fill is accent-blue, and the glass is a mouse-transparent child that follows.
 final class PanelController {
 
-    private let panel: KeyablePanel
-    private let viewController: SoundPopoverViewController
-    private var resignObserver: NSObjectProtocol?
+    private let contentWindow: KeyableWindow
+    private let glassWindow: NSWindow
+    private let hosting: NSHostingView<SoundPopoverView>
+    private let model: PopoverModel
 
     private(set) var isShown = false
+    private var resignObserver: NSObjectProtocol?
     private var lastCloseTime: Date?
 
     var onVisibilityChanged: ((Bool) -> Void)?
 
-    init(viewController: SoundPopoverViewController) {
-        self.viewController = viewController
-        panel = KeyablePanel(contentRect: .zero,
-                             styleMask: [.borderless, .nonactivatingPanel],
-                             backing: .buffered, defer: true)
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = true
-        panel.level = .statusBar
-        panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = viewController.view
+    init(model: PopoverModel) {
+        self.model = model
+        hosting = NSHostingView(rootView: SoundPopoverView(model: model))
+
+        contentWindow = KeyableWindow(contentRect: .zero, styleMask: [.borderless],
+                                      backing: .buffered, defer: true)
+        contentWindow.isOpaque = false
+        contentWindow.backgroundColor = .clear
+        contentWindow.hasShadow = false
+        contentWindow.level = .statusBar
+        contentWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        contentWindow.contentView = hosting
+
+        glassWindow = NSWindow(contentRect: .zero, styleMask: [.borderless],
+                               backing: .buffered, defer: true)
+        glassWindow.isOpaque = false
+        glassWindow.backgroundColor = .clear
+        glassWindow.hasShadow = true
+        glassWindow.level = .statusBar
+        glassWindow.isMovable = false
+        glassWindow.ignoresMouseEvents = true   // all input goes to the content window
+        glassWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = 13
+            glassWindow.contentView = glass
+        } else {
+            let effect = NSVisualEffectView()
+            effect.material = .popover
+            effect.blendingMode = .behindWindow
+            effect.state = .active
+            effect.wantsLayer = true
+            effect.layer?.cornerRadius = 13
+            glassWindow.contentView = effect
+        }
     }
 
     func toggle(relativeTo button: NSStatusBarButton) {
@@ -45,27 +75,31 @@ final class PanelController {
     }
 
     func show(relativeTo button: NSStatusBarButton) {
-        viewController.rebind()
-        let size = viewController.contentSize
-        viewController.view.setFrameSize(size)
-        viewController.view.layoutSubtreeIfNeeded()
-        panel.setContentSize(size)
+        model.reload()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: size)
 
         guard let buttonWindow = button.window else { return }
         let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let visible = (buttonWindow.screen ?? NSScreen.main)?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        panel.setFrameOrigin(Self.computeOrigin(buttonFrame: buttonFrame,
-                                                contentSize: size, visibleFrame: visible))
+        let origin = Self.computeOrigin(buttonFrame: buttonFrame, contentSize: size, visibleFrame: visible)
+        let frame = NSRect(origin: origin, size: size)
 
-        panel.alphaValue = 0
-        panel.orderFrontRegardless()
-        panel.makeKey()      // active control appearance (blue slider)
-        NSAnimationContext.runAnimationGroup { $0.duration = 0.12; panel.animator().alphaValue = 1 }
+        glassWindow.setFrame(frame, display: true)
+        contentWindow.setFrame(frame, display: true)
+        if glassWindow.parent == nil {
+            contentWindow.addChildWindow(glassWindow, ordered: .below)
+        }
+
+        contentWindow.makeKeyAndOrderFront(nil)
+        contentWindow.makeMain()
+        NSApp.activate(ignoringOtherApps: true)
+
         isShown = true
         onVisibilityChanged?(true)
         resignObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
+            forName: NSWindow.didResignKeyNotification, object: contentWindow, queue: .main) { [weak self] _ in
             self?.close()
         }
     }
@@ -77,8 +111,9 @@ final class PanelController {
         if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
         resignObserver = nil
         onVisibilityChanged?(false)
-        NSAnimationContext.runAnimationGroup({ $0.duration = 0.1; panel.animator().alphaValue = 0 },
-                                             completionHandler: { [weak self] in self?.panel.orderOut(nil) })
+        if glassWindow.parent != nil { contentWindow.removeChildWindow(glassWindow) }
+        glassWindow.orderOut(nil)
+        contentWindow.orderOut(nil)
     }
 
     /// Bottom-left origin: shown to the right of the icon by default

@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// Entry point for the SoundCtl menu-bar agent. Lives in the library target so
 /// the executable stays a one-liner and all logic remains unit-testable.
@@ -17,10 +18,6 @@ public enum AppMain {
             runDDCTest(arguments: arguments)
             return
         }
-        if arguments.contains("--debug-menu") {
-            runDebugMenu(arguments: arguments)
-            return
-        }
 
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -29,55 +26,17 @@ public enum AppMain {
         app.run()
     }
 
-    /// Renders the popover inside a real NSMenu and screenshots it (via a
-    /// background thread, since popUp blocks) so the layout can be measured with
-    /// the menu's own insets. Debug only.
-    private static func runDebugMenu(arguments: [String]) {
-        let app = NSApplication.shared
-        app.setActivationPolicy(.regular)
-        let audio = AudioController()
-        let ddc = DDCController()
-        let coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
-        let vc = SoundPopoverViewController(audio: audio, coordinator: coordinator)
-        _ = vc.view
-        vc.rebind()
-        let size = vc.view.fittingSize
-        vc.view.setFrameSize(size)
-        vc.view.layoutSubtreeIfNeeded()
-
-        let menu = NSMenu()
-        let item = NSMenuItem()
-        item.view = vc.view
-        menu.addItem(item)
-
-        let out = arguments.first(where: { $0.hasPrefix("--out=") })?
-            .replacingOccurrences(of: "--out=", with: "") ?? "/tmp/ours_menu.png"
-        Thread.detachNewThread {
-            Thread.sleep(forTimeInterval: 1.0)
-            let t = Process()
-            t.launchPath = "/usr/sbin/screencapture"
-            t.arguments = ["-x", out]
-            try? t.run(); t.waitUntilExit()
-            exit(0)
-        }
-        let w = NSWindow(contentRect: NSRect(x: 400, y: 700, width: 40, height: 24),
-                         styleMask: [.borderless], backing: .buffered, defer: false)
-        w.orderFrontRegardless()
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: w.contentView)
-        exit(0)
-    }
-
     private static func runMeasure() {
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
+        _ = NSApplication.shared
+        NSApplication.shared.setActivationPolicy(.accessory)
         let audio = AudioController()
         let ddc = DDCController()
         let coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
-        let vc = SoundPopoverViewController(audio: audio, coordinator: coordinator)
-        _ = vc.view
-        vc.rebind()
-        vc.view.layoutSubtreeIfNeeded()
-        print("fittingSize:", vc.view.fittingSize)
+        let model = PopoverModel(audio: audio, coordinator: coordinator)
+        model.reload()
+        let host = NSHostingView(rootView: SoundPopoverView(model: model))
+        host.layoutSubtreeIfNeeded()
+        print("fittingSize:", host.fittingSize)
         print("devices:", audio.devices.map { "\($0.name)[\($0.iconSymbol)]" })
     }
 

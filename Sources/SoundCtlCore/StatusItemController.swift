@@ -10,13 +10,13 @@ final class StatusItemController {
     private let audio = AudioController()
     private let ddc = DDCController()
     private let coordinator: VolumeCoordinator
-    private let popoverVC: SoundPopoverViewController
+    private let model: PopoverModel
     private let panel: PanelController
 
     init() {
         coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
-        popoverVC = SoundPopoverViewController(audio: audio, coordinator: coordinator)
-        panel = PanelController(viewController: popoverVC)
+        model = PopoverModel(audio: audio, coordinator: coordinator)
+        panel = PanelController(model: model)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -24,10 +24,10 @@ final class StatusItemController {
             button.action = #selector(togglePanel)
         }
 
-        popoverVC.onVolumeStateChange = { [weak self] value, muted in
+        model.onVolumeStateChange = { [weak self] value, muted in
             self?.updateIcon(value: value, muted: muted)
         }
-        popoverVC.onRequestClose = { [weak self] in
+        model.onRequestClose = { [weak self] in
             self?.panel.close()
         }
         panel.onVisibilityChanged = { [weak self] shown in
@@ -36,11 +36,11 @@ final class StatusItemController {
 
         audio.onDeviceListChange = { [weak self] in
             guard let self else { return }
-            if self.panel.isShown { self.popoverVC.rebind() } else { self.refreshIcon() }
+            if self.panel.isShown { self.model.reload() } else { self.refreshIcon() }
         }
         audio.onVolumeChange = { [weak self] in
             guard let self else { return }
-            if self.panel.isShown { self.popoverVC.refreshVolumeOnly() } else { self.refreshIcon() }
+            if self.panel.isShown { self.model.refreshVolumeOnly() } else { self.refreshIcon() }
         }
 
         refreshIcon()
