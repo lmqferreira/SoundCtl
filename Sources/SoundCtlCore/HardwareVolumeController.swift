@@ -121,6 +121,28 @@ final class HardwareVolumeController {
         muted = value <= 0.001
     }
 
+    /// Adjust the current default output by a delta (for scrolling over the
+    /// menu-bar icon). Works for DDC displays and software devices alike, shows
+    /// the HUD, and reports the new level for the menu-bar icon.
+    func adjustCurrentDevice(by delta: Float) {
+        guard delta != 0, let device = audio.defaultDevice else { return }
+        let current = currentVolume(for: device)
+        let new = max(0, min(1, current + delta))
+        cachedDeviceID = device.id
+        cachedVolume = new
+        muted = new <= 0.001
+        preMuteVolume = nil
+        coordinator.setVolume(new, for: device)
+        hud.show(level: new, muted: muted)
+        onVolumeChanged?(new, muted)
+    }
+
+    private func currentVolume(for device: AudioDevice) -> Float {
+        if cachedDeviceID == device.id, let cached = cachedVolume { return cached }
+        if let display = ddc.display(matching: device) { return display.readVolume() ?? 0 }
+        return audio.volume(device.id) ?? 0
+    }
+
     // MARK: - Pure logic (testable)
 
     /// The next grid value above/below the current 0...1 level.

@@ -56,11 +56,31 @@ final class StatusItemController {
 
         refreshIcon()
 
+        // Scroll the wheel over the menu-bar icon to change volume (like the
+        // native Sound icon). A local monitor needs no Accessibility permission.
+        installMenuBarScrollMonitor()
+
         // Take over the hardware volume keys for DDC displays. If Accessibility
         // isn't granted yet, keep retrying so it starts working as soon as the
         // user enables it (no relaunch needed).
         Log.write("launch: starting volume-key handling")
         beginVolumeKeys()
+    }
+
+    private var menuScrollMonitor: Any?
+
+    private func installMenuBarScrollMonitor() {
+        menuScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self,
+                  let button = self.statusItem.button,
+                  let window = button.window else { return event }
+            let frame = window.convertToScreen(button.convert(button.bounds, to: nil))
+            guard frame.contains(NSEvent.mouseLocation) else { return event }
+            let raw = Double(event.scrollingDeltaY)
+            let lines = event.hasPreciseScrollingDeltas ? raw / 40.0 : raw
+            self.hwVolume.adjustCurrentDevice(by: Float(lines * (1.0 / 16.0)))
+            return nil
+        }
     }
 
     private var permissionTimer: Timer?
