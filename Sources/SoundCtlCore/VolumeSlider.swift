@@ -88,28 +88,40 @@ final class VolumeSlider: NSControl {
             fill.fill()
         }
 
-        // Knob: a horizontal pill (capsule), wider than tall — like native.
+        // Knob: a horizontal pill (capsule), wider than tall — like native. It
+        // becomes translucent while dragging (you see the track through it).
         let knobRect = NSRect(x: cx - knobWidth / 2,
                               y: (bounds.height - knobHeight) / 2,
                               width: knobWidth,
                               height: knobHeight)
         let knobRadius = knobHeight / 2
         NSGraphicsContext.current?.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.25)
-        shadow.shadowBlurRadius = 2
-        shadow.shadowOffset = NSSize(width: 0, height: -1)
-        shadow.set()
-        let knobColor = isEnabledControl ? NSColor.white : NSColor(white: 0.85, alpha: 1)
+        if !dragging {
+            let shadow = NSShadow()
+            shadow.shadowColor = NSColor.black.withAlphaComponent(0.25)
+            shadow.shadowBlurRadius = 2
+            shadow.shadowOffset = NSSize(width: 0, height: -1)
+            shadow.set()
+        }
+        let knobColor: NSColor
+        if !isEnabledControl {
+            knobColor = NSColor(white: 0.85, alpha: 1)
+        } else if dragging {
+            knobColor = NSColor.white.withAlphaComponent(0.55)
+        } else {
+            knobColor = NSColor.white
+        }
         knobColor.setFill()
         NSBezierPath(roundedRect: knobRect, xRadius: knobRadius, yRadius: knobRadius).fill()
         NSGraphicsContext.current?.restoreGraphicsState()
 
-        NSColor.black.withAlphaComponent(0.08).setStroke()
-        let ring = NSBezierPath(roundedRect: knobRect.insetBy(dx: 0.5, dy: 0.5),
-                                xRadius: knobRadius, yRadius: knobRadius)
-        ring.lineWidth = 0.5
-        ring.stroke()
+        if !dragging {
+            NSColor.black.withAlphaComponent(0.08).setStroke()
+            let ring = NSBezierPath(roundedRect: knobRect.insetBy(dx: 0.5, dy: 0.5),
+                                    xRadius: knobRadius, yRadius: knobRadius)
+            ring.lineWidth = 0.5
+            ring.stroke()
+        }
     }
 
     // MARK: - Input
@@ -117,6 +129,7 @@ final class VolumeSlider: NSControl {
     override func mouseDown(with event: NSEvent) {
         guard isEnabledControl else { return }
         dragging = true
+        needsDisplay = true
         onEditingChanged?(true)
         updateValue(with: event)
     }
@@ -129,6 +142,7 @@ final class VolumeSlider: NSControl {
     override func mouseUp(with event: NSEvent) {
         guard dragging else { return }
         dragging = false
+        needsDisplay = true
         onEditingChanged?(false)
     }
 

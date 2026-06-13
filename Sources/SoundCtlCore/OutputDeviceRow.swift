@@ -59,8 +59,8 @@ final class OutputDeviceRow: NSView {
 
             iconView.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
             iconView.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 15),
-            iconView.heightAnchor.constraint(equalToConstant: 15),
+            iconView.widthAnchor.constraint(equalToConstant: 20),
+            iconView.heightAnchor.constraint(equalToConstant: 20),
 
             label.leadingAnchor.constraint(equalTo: iconContainer.trailingAnchor, constant: 9),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -75,7 +75,7 @@ final class OutputDeviceRow: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     private func configure(symbol: String, selected: Bool) {
-        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
         iconView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
         setSelected(selected)
