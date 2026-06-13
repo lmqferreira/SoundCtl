@@ -41,6 +41,9 @@ final class StatusItemController {
         panel.onVisibilityChanged = { [weak self] shown in
             self?.setHighlighted(shown)
         }
+        hwVolume.onVolumeChanged = { [weak self] value, muted in
+            self?.updateIcon(value: value, muted: muted)
+        }
 
         audio.onDeviceListChange = { [weak self] in
             guard let self else { return }

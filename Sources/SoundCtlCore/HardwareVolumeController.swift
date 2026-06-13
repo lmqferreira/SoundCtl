@@ -21,6 +21,10 @@ final class HardwareVolumeController {
     private let hud = VolumeHUD()
     var betterDisplay = BetterDisplayDetector()
 
+    /// Reports (volume 0...1, muted) after a key-driven change so the menu-bar
+    /// icon can mirror the level with the same variable-symbol effect as the HUD.
+    var onVolumeChanged: ((Float, Bool) -> Void)?
+
     private var cachedDeviceID: AudioDeviceID = 0
     private var cachedVolume: Float?
     private var preMuteVolume: Float?
@@ -56,14 +60,11 @@ final class HardwareVolumeController {
 
     /// Returns true to consume the key (we handled it), false to pass it through.
     private func handle(key: VolumeKeyMonitor.Key, isDown: Bool, isRepeat: Bool) -> Bool {
-        let device = audio.defaultDevice
-        let display = device.flatMap { ddc.display(matching: $0) }
-        let bd = betterDisplay.isRunning
-        let shouldHandle = display != nil && !bd
-        if isDown {
-            Log.write("key=\(key) down repeat=\(isRepeat) device=\(device?.name ?? "nil") hasDDC=\(display != nil) betterDisplay=\(bd) -> handle=\(shouldHandle)")
+        guard let device = audio.defaultDevice,
+              let display = ddc.display(matching: device),
+              !betterDisplay.isRunning else {
+            return false
         }
-        guard let device, let display, !bd else { return false }
         guard isDown else { return true }   // consume the matching key-up too
 
         ensureCache(device: device, display: display)
@@ -91,6 +92,7 @@ final class HardwareVolumeController {
         preMuteVolume = nil
         coordinator.setVolume(new, for: device)
         hud.show(level: new, muted: muted)
+        onVolumeChanged?(new, muted)
     }
 
     private func toggleMute(device: AudioDevice) {
@@ -102,12 +104,14 @@ final class HardwareVolumeController {
             preMuteVolume = nil
             coordinator.setVolume(value, for: device)
             hud.show(level: value, muted: false)
+            onVolumeChanged?(value, false)
         } else {
             preMuteVolume = cachedVolume
             cachedVolume = 0
             muted = true
             coordinator.setVolume(0, for: device)
             hud.show(level: 0, muted: true)
+            onVolumeChanged?(0, true)
         }
     }
 
