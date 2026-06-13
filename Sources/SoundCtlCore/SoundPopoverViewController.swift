@@ -62,7 +62,7 @@ final class SoundPopoverViewController: NSViewController {
         titleLabel.textColor = .labelColor
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        outputHeader.font = .systemFont(ofSize: 10, weight: .bold)
+        outputHeader.font = .systemFont(ofSize: 11, weight: .bold)
         outputHeader.textColor = .labelColor
         outputHeader.translatesAutoresizingMaskIntoConstraints = false
 
