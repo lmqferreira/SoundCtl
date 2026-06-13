@@ -218,8 +218,9 @@ public enum SelfTests {
         check("content root is a visual-effect view", vc.view is NSVisualEffectView)
         if let effect = vc.view as? NSVisualEffectView {
             check("uses the menu material", effect.material == .menu)
-            check("rounds corners via maskImage (not layer masking)",
-                  effect.maskImage != nil && effect.layer?.masksToBounds != true)
+            check("blends behind window (vibrant)", effect.blendingMode == .behindWindow)
+            check("rounds corners via cornerRadius, no opaque maskImage (keeps vibrancy)",
+                  effect.layer?.cornerRadius == 13 && effect.maskImage == nil)
         }
 
         print("\nResult: \(passes) passed, \(failures) failed, \(skips) skipped")

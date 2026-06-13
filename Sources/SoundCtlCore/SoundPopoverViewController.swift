@@ -44,28 +44,14 @@ final class SoundPopoverViewController: NSViewController {
         effect.material = .menu
         effect.blendingMode = .behindWindow
         effect.state = .active
-        // Round the corners with a mask image (NOT layer.masksToBounds, which
-        // rasterizes and flattens the vibrancy / makes it look opaque).
-        effect.maskImage = Self.roundedMaskImage(radius: 13)
+        // Round the corners with the layer's cornerRadius but WITHOUT
+        // masksToBounds / maskImage — both of those rasterize the material and
+        // make it look opaque. cornerRadius alone keeps the frosted vibrancy.
+        effect.wantsLayer = true
+        effect.layer?.cornerRadius = 13
         effect.translatesAutoresizingMaskIntoConstraints = false
         view = effect
         buildLayout(in: effect)
-    }
-
-    /// A resizable rounded-rectangle mask so the visual-effect view keeps its
-    /// frosted vibrancy while gaining rounded corners. Built with lockFocus +
-    /// cap-insets so it stretches to fill (a drawing-handler image won't).
-    private static func roundedMaskImage(radius: CGFloat) -> NSImage {
-        let diameter = radius * 2 + 1
-        let image = NSImage(size: NSSize(width: diameter, height: diameter))
-        image.lockFocus()
-        NSColor.black.setFill()
-        NSBezierPath(roundedRect: NSRect(origin: .zero, size: image.size),
-                     xRadius: radius, yRadius: radius).fill()
-        image.unlockFocus()
-        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
-        image.resizingMode = .stretch
-        return image
     }
 
     override func viewWillAppear() {
