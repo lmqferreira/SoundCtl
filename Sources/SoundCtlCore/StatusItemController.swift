@@ -26,6 +26,9 @@ final class StatusItemController {
         panel = PanelController(model: model)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // isVisible is auto-persisted by AppKit; force it on at launch so a prior
+        // "Don't Show in Menu Bar" (session-only by design) is restored on relaunch.
+        statusItem.isVisible = true
         if let button = statusItem.button {
             button.target = self
             button.action = #selector(handleClick)
