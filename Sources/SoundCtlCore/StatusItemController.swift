@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import ApplicationServices
 
 /// Owns the menu-bar status item and a key panel hosting the Sound content.
 /// A key window is required so the native NSSlider renders active (blue); the
@@ -13,11 +14,13 @@ final class StatusItemController {
     private let coordinator: VolumeCoordinator
     private let model: PopoverModel
     private let panel: PanelController
+    private let hwVolume: HardwareVolumeController
 
     init() {
         coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
         model = PopoverModel(audio: audio, coordinator: coordinator)
         panel = PanelController(model: model)
+        hwVolume = HardwareVolumeController(audio: audio, coordinator: coordinator, ddc: ddc)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         // isVisible is auto-persisted by AppKit; force it on at launch so a prior
@@ -49,6 +52,10 @@ final class StatusItemController {
         }
 
         refreshIcon()
+
+        // Take over the hardware volume keys for DDC displays (no-op until the
+        // user grants Accessibility; the right-click menu offers to enable it).
+        hwVolume.start()
     }
 
     // MARK: - Highlight
@@ -119,7 +126,17 @@ final class StatusItemController {
 
     private func showContextMenu(from button: NSStatusBarButton) {
         if panel.isShown { panel.close() }
+        // The user may have just granted Accessibility — retry installing the tap.
+        if !hwVolume.isActive { hwVolume.start() }
         let menu = NSMenu()
+
+        if !hwVolume.isActive {
+            let enable = NSMenuItem(title: "Enable Volume Keys for Displays…",
+                                    action: #selector(enableVolumeKeys), keyEquivalent: "")
+            enable.target = self
+            menu.addItem(enable)
+            menu.addItem(.separator())
+        }
 
         let login = NSMenuItem(title: "Launch at Login",
                                action: #selector(toggleOpenAtLogin), keyEquivalent: "")
@@ -136,6 +153,20 @@ final class StatusItemController {
         menu.popUp(positioning: nil,
                    at: NSPoint(x: 0, y: button.bounds.height + 5),
                    in: button)
+    }
+
+    /// Prompts for Accessibility (required by the volume-key event tap) and opens
+    /// the relevant Settings pane. The keys start working once granted.
+    @objc private func enableVolumeKeys() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+        // Try again shortly in case the grant takes effect without a relaunch.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.hwVolume.start()
+        }
     }
 
     // MARK: - Open at Login (ServiceManagement)

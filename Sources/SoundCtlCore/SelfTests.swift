@@ -132,6 +132,23 @@ public enum SelfTests {
         check("normal volume is not muted",
               !VolumeCoordinator.isMutedLook(value: 0.5, hardwareMuted: false))
 
+        // MARK: Hardware volume keys
+        print("[hardware]")
+        check("volume step is 1/16", abs(HardwareVolumeController.step - 1.0/16.0) < 0.0001)
+        check("stepping up adds 1/16",
+              abs(HardwareVolumeController.stepped(0.5, delta: HardwareVolumeController.step) - (0.5 + 1.0/16.0)) < 0.0001)
+        check("stepping down subtracts 1/16",
+              abs(HardwareVolumeController.stepped(0.5, delta: -HardwareVolumeController.step) - (0.5 - 1.0/16.0)) < 0.0001)
+        check("step clamps at max", HardwareVolumeController.stepped(1, delta: HardwareVolumeController.step) == 1)
+        check("step clamps at min", HardwareVolumeController.stepped(0, delta: -HardwareVolumeController.step) == 0)
+
+        var bdRunning = BetterDisplayDetector()
+        bdRunning.runningBundleIDs = { ["pro.betterdisplay.BetterDisplay", "com.apple.finder"] }
+        check("detects BetterDisplay when running", bdRunning.isRunning)
+        var bdAbsent = BetterDisplayDetector()
+        bdAbsent.runningBundleIDs = { ["com.apple.finder", "com.apple.dock"] }
+        check("BetterDisplay absent when not running", !bdAbsent.isRunning)
+
         // MARK: Popover placement + content sizing
         print("[placement]")
         let visible = NSRect(x: 0, y: 0, width: 1440, height: 900)

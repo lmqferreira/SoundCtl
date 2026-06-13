@@ -8,6 +8,10 @@ final class VolumeCoordinator {
     let audio: AudioController
     let ddc: DDCController
 
+    /// Called after a DDC volume write so other components (e.g. the hardware
+    /// volume keys) can keep their cached level in sync with the popover.
+    var onVolumeWritten: ((Float, AudioDevice) -> Void)?
+
     init(audio: AudioController, ddc: DDCController) {
         self.audio = audio
         self.ddc = ddc
@@ -56,6 +60,7 @@ final class VolumeCoordinator {
     func setVolume(_ value: Float, for device: AudioDevice) {
         if let display = ddc.display(matching: device) {
             display.writeVolume(value)
+            onVolumeWritten?(value, device)
             return
         }
         if value > 0 && audio.hasMute(device.id) && audio.isMuted(device.id) {
