@@ -72,14 +72,14 @@ and the volume-key Accessibility grant register reliably only for an app in
 
 - **Left-click** the menu-bar icon → the Sound popover (volume + output switching).
 - **Right-click** (or control-click) the icon → Launch at Login / Quit, and
-  **Enable Volume Keys for Displays…** until Accessibility is granted.
+  **Grant Accessibility Access for Volume Keys…** until Accessibility is granted.
 
 ### Volume keys for displays (permission)
 
 To let the hardware volume keys control a monitor, SoundCtl needs **Accessibility**
 permission (to observe the media keys via a `CGEventTap`):
 
-1. Right-click the menu-bar icon → **Enable Volume Keys for Displays…**
+1. Right-click the menu-bar icon → **Grant Accessibility Access for Volume Keys…**
 2. Enable **SoundCtl** under *System Settings → Privacy & Security → Accessibility*.
 3. If the keys don't respond immediately, relaunch SoundCtl.
 

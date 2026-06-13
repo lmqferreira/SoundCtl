@@ -146,7 +146,7 @@ final class StatusItemController {
         let menu = NSMenu()
 
         if !hwVolume.isActive {
-            let enable = NSMenuItem(title: "Enable Volume Keys for Displays…",
+            let enable = NSMenuItem(title: "Grant Accessibility Access for Volume Keys…",
                                     action: #selector(enableVolumeKeys), keyEquivalent: "")
             enable.target = self
             menu.addItem(enable)

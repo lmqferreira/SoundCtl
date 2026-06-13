@@ -30,5 +30,5 @@ open "$DEST"
 
 echo "==> installed $DEST"
 echo "    Tip: grant Accessibility (right-click the icon ->"
-echo "    \"Enable Volume Keys for Displays…\") to control monitor volume with the"
-echo "    hardware volume keys."
+echo "    \"Grant Accessibility Access for Volume Keys…\") to control monitor volume"
+echo "    with the hardware volume keys."
