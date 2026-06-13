@@ -111,19 +111,21 @@ final class StatusItemController {
             applyIcon(value: value, muted: muted, headphones: headphones)
             return
         }
-        targetLevel = max(0, min(1, value))
+        animFrom = displayedLevel
+        animTo = max(0, min(1, value))
+        animStart = Date()
         guard iconTimer == nil else { return }
         iconTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
             guard let self else { timer.invalidate(); return }
-            let diff = self.targetLevel - self.displayedLevel
-            if abs(diff) < 0.004 {
-                self.displayedLevel = self.targetLevel
-                self.applyIcon(value: self.displayedLevel, muted: false, headphones: false)
+            let elapsed = Date().timeIntervalSince(self.animStart)
+            let t = min(1.0, elapsed / Self.iconAnimDuration)
+            let eased = Float(t * t * (3 - 2 * t))   // smoothstep
+            self.displayedLevel = self.animFrom + (self.animTo - self.animFrom) * eased
+            self.applyIcon(value: self.displayedLevel, muted: false, headphones: false)
+            if t >= 1 {
+                self.displayedLevel = self.animTo
                 timer.invalidate()
                 self.iconTimer = nil
-            } else {
-                self.displayedLevel += diff * 0.28
-                self.applyIcon(value: self.displayedLevel, muted: false, headphones: false)
             }
         }
     }
@@ -149,8 +151,11 @@ final class StatusItemController {
     }
 
     private var displayedLevel: Float = 0
-    private var targetLevel: Float = 0
+    private var animFrom: Float = 0
+    private var animTo: Float = 0
+    private var animStart = Date()
     private var iconTimer: Timer?
+    private static let iconAnimDuration: TimeInterval = 0.45
 
     private static let iconPointSize: CGFloat = 15
     private static let headphonesPointSize: CGFloat = 14
