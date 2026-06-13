@@ -43,7 +43,7 @@ struct SoundPopoverView: View {
 
             SettingsRowView { model.openSettings() }
                 .padding(.top, 4)
-                .padding(.bottom, 1)
+                .padding(.bottom, 7)
         }
         .frame(width: Self.contentWidth, alignment: .leading)
         .noFocusEffect()
