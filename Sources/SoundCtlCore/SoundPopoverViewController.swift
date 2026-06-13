@@ -108,7 +108,7 @@ final class SoundPopoverViewController: NSViewController {
             outputHeader.topAnchor.constraint(equalTo: separator1.bottomAnchor, constant: 7),
             outputHeader.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 14),
 
-            devicesStack.topAnchor.constraint(equalTo: outputHeader.bottomAnchor, constant: 4),
+            devicesStack.topAnchor.constraint(equalTo: outputHeader.bottomAnchor, constant: 3),
             devicesStack.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             devicesStack.trailingAnchor.constraint(equalTo: root.trailingAnchor),
 
