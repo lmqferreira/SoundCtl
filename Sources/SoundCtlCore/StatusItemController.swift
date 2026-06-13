@@ -121,7 +121,7 @@ final class StatusItemController {
         if panel.isShown { panel.close() }
         let menu = NSMenu()
 
-        let login = NSMenuItem(title: "Open at Login",
+        let login = NSMenuItem(title: "Launch at Login",
                                action: #selector(toggleOpenAtLogin), keyEquivalent: "")
         login.target = self
         login.state = isOpenAtLoginEnabled ? .on : .off
