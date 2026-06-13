@@ -78,7 +78,13 @@ final class StatusItemController {
             guard frame.contains(NSEvent.mouseLocation) else { return event }
             let raw = Double(event.scrollingDeltaY)
             let lines = event.hasPreciseScrollingDeltas ? raw / 40.0 : raw
-            self.hwVolume.adjustCurrentDevice(by: Float(lines * (1.0 / 16.0)))
+            let delta = lines * (1.0 / 16.0)
+            if self.panel.isShown {
+                // Popover already shows the level — update the slider, no HUD.
+                self.model.nudgeVolume(by: delta)
+            } else {
+                self.hwVolume.adjustCurrentDevice(by: Float(delta))
+            }
             return nil
         }
     }
