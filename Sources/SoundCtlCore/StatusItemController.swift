@@ -1,62 +1,52 @@
 import AppKit
 
-/// Owns the menu-bar status item and a borderless panel hosting the Sound
-/// content. The panel gives full control over the (right-aligned) positioning
-/// and the frosted material; we keep the status item highlighted while it's open.
-final class StatusItemController {
+/// Owns the menu-bar status item and hosts the Sound content inside a native
+/// NSMenu (statusItem.menu auto-display). This gives the genuine translucent
+/// menu material, the persistent button highlight, native positioning and
+/// dismissal — none of which a hand-rolled panel reproduces. (Rectangle-style.)
+final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
+    private let menu = NSMenu()
+    private let contentItem = NSMenuItem()
 
     private let audio = AudioController()
     private let ddc = DDCController()
     private let coordinator: VolumeCoordinator
     private let popoverVC: SoundPopoverViewController
-    private let panel: PanelController
 
-    init() {
+    override init() {
         coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
         popoverVC = SoundPopoverViewController(audio: audio, coordinator: coordinator)
-        panel = PanelController(viewController: popoverVC)
-
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
-            button.target = self
-            button.action = #selector(togglePanel)
-        }
+        super.init()
+
+        _ = popoverVC.view
+        contentItem.view = popoverVC.view
+        menu.addItem(contentItem)
+        menu.delegate = self
+        statusItem.menu = menu
 
         popoverVC.onVolumeStateChange = { [weak self] value, muted in
             self?.updateIcon(value: value, muted: muted)
         }
         popoverVC.onRequestClose = { [weak self] in
-            self?.panel.close()
-        }
-        panel.onVisibilityChanged = { [weak self] shown in
-            self?.setHighlighted(shown)
+            self?.menu.cancelTracking()
         }
 
-        audio.onDeviceListChange = { [weak self] in
-            guard let self else { return }
-            if self.panel.isShown { self.popoverVC.rebind() } else { self.refreshIcon() }
-        }
-        audio.onVolumeChange = { [weak self] in
-            guard let self else { return }
-            if self.panel.isShown { self.popoverVC.refreshVolumeOnly() } else { self.refreshIcon() }
-        }
+        audio.onDeviceListChange = { [weak self] in self?.refreshIcon() }
+        audio.onVolumeChange = { [weak self] in self?.refreshIcon() }
 
         refreshIcon()
     }
 
-    // MARK: - Highlight
+    // MARK: - NSMenuDelegate
 
-    /// Setting the highlight synchronously during the button's click gets reset
-    /// when the click finishes, so defer it past the current event. Cleared
-    /// immediately on close.
-    private func setHighlighted(_ highlighted: Bool) {
-        guard let button = statusItem.button else { return }
-        if highlighted {
-            DispatchQueue.main.async { button.highlight(true) }
-        } else {
-            button.highlight(false)
-        }
+    func menuWillOpen(_ menu: NSMenu) {
+        audio.refreshDevices()
+        popoverVC.rebind()
+        let size = popoverVC.view.fittingSize
+        popoverVC.view.setFrameSize(size)
+        popoverVC.view.layoutSubtreeIfNeeded()
     }
 
     // MARK: - Icon
@@ -88,18 +78,8 @@ final class StatusItemController {
         }
         image?.isTemplate = true
         button.image = image
-        // Re-assert the highlight: changing the image while open would otherwise
-        // drop the selected appearance mid-drag.
-        if panel.isShown { button.highlight(true) }
     }
 
     /// Tuned to match the native menu-bar speaker glyph size.
     private static let iconPointSize: CGFloat = 15
-
-    // MARK: - Panel
-
-    @objc private func togglePanel() {
-        guard let button = statusItem.button else { return }
-        panel.toggle(relativeTo: button)
-    }
 }

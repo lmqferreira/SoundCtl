@@ -33,28 +33,6 @@ public enum SelfTests {
 
         print("SoundCtl self-test")
 
-        // MARK: Popover placement (right-of-icon by default; flip near the edge)
-        print("[placement]")
-        let visible = NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let content = NSSize(width: 307, height: 232)
-
-        // Icon with room to the right -> popover left-aligns to the icon.
-        let midIcon = NSRect(x: 600, y: 876, width: 24, height: 24)
-        let oMid = PanelController.computeOrigin(buttonFrame: midIcon,
-                                                 contentSize: content, visibleFrame: visible)
-        check("left-aligns to icon when there's room (extends right)",
-              abs(oMid.x - midIcon.minX) < 0.5)
-        check("drops below the icon", abs(oMid.y - (midIcon.minY - 6 - content.height)) < 0.5)
-
-        // Icon near the right edge -> flip so the popover extends left.
-        let rightIcon = NSRect(x: 1400, y: 876, width: 24, height: 24) // maxX = 1424
-        let oRight = PanelController.computeOrigin(buttonFrame: rightIcon,
-                                                   contentSize: content, visibleFrame: visible)
-        check("flips to right-align near the right edge (extends left)",
-              abs((oRight.x + content.width) - rightIcon.maxX) < 0.5)
-        check("stays on-screen at the right edge",
-              oRight.x + content.width <= visible.maxX - 8 + 0.001)
-
         // MARK: Click handling (device switch + settings regressions)
         print("[clicks]")
         let row = OutputDeviceRow(deviceID: 42, symbol: "speaker.fill", name: "Test", selected: false)
@@ -194,34 +172,16 @@ public enum SelfTests {
         check("normal volume is not muted",
               !VolumeCoordinator.isMutedLook(value: 0.5, hardwareMuted: false))
 
-        // MARK: Status-item highlight persists while the panel is open
-        print("[highlight]")
-        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let button = statusItem.button {
-            let panel = PanelController(viewController: vc)
-            var visibility: [Bool] = []
-            panel.onVisibilityChanged = { shown in
-                button.highlight(shown)
-                visibility.append(shown)
-            }
-            panel.show(relativeTo: button)
-            check("panel reports shown + highlights icon", button.isHighlighted && visibility.last == true)
-            panel.close()
-            check("panel reports hidden on close", visibility.last == false)
-        } else {
-            skip("status item highlight", "no status button")
-        }
-        NSStatusBar.system.removeStatusItem(statusItem)
-
-        // MARK: Frosted material with rounded corners (vibrancy preserved)
-        print("[material]")
-        check("content root is a visual-effect view", vc.view is NSVisualEffectView)
-        if let effect = vc.view as? NSVisualEffectView {
-            check("uses the popover material", effect.material == .popover)
-            check("blends behind window (vibrant)", effect.blendingMode == .behindWindow)
-            check("rounds corners via cornerRadius, no opaque maskImage (keeps vibrancy)",
-                  effect.layer?.cornerRadius == 13 && effect.maskImage == nil)
-        }
+        // MARK: NSMenu hosting (native material + highlight + positioning)
+        print("[menu]")
+        let hostMenu = NSMenu()
+        let item = NSMenuItem()
+        item.view = vc.view
+        hostMenu.addItem(item)
+        check("content is hosted in a menu item view", hostMenu.items.first?.view === vc.view)
+        check("hosted content keeps native width", abs(vc.view.fittingSize.width - 307) < 0.5)
+        check("content root is transparent (lets native menu material show)",
+              !(vc.view is NSVisualEffectView))
 
         print("\nResult: \(passes) passed, \(failures) failed, \(skips) skipped")
         return failures

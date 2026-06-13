@@ -40,20 +40,13 @@ final class SoundPopoverViewController: NSViewController {
     required init?(coder: NSCoder) { fatalError() }
 
     override func loadView() {
-        let effect = NSVisualEffectView()
-        // `.popover` is more translucent than `.menu` (which looked too opaque
-        // vs the native Sound popover) and is the correct material for a popover.
-        effect.material = .popover
-        effect.blendingMode = .behindWindow
-        effect.state = .active
-        // Round the corners with the layer's cornerRadius but WITHOUT
-        // masksToBounds / maskImage — both of those rasterize the material and
-        // make it look opaque. cornerRadius alone keeps the frosted vibrancy.
-        effect.wantsLayer = true
-        effect.layer?.cornerRadius = 13
-        effect.translatesAutoresizingMaskIntoConstraints = false
-        view = effect
-        buildLayout(in: effect)
+        // Transparent container — the hosting NSMenu provides the native frosted
+        // material, rounding and shadow (a hand-rolled NSVisualEffectView can't
+        // match native's translucency).
+        let root = NSView()
+        root.translatesAutoresizingMaskIntoConstraints = false
+        view = root
+        buildLayout(in: root)
     }
 
     override func viewWillAppear() {
