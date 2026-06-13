@@ -32,7 +32,7 @@ final class TextHoverRow: NSView {
             highlight.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            heightAnchor.constraint(equalToConstant: 32)
+            heightAnchor.constraint(equalToConstant: 22)
         ])
     }
 

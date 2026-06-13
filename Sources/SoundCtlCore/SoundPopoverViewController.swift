@@ -62,7 +62,7 @@ final class SoundPopoverViewController: NSViewController {
         titleLabel.textColor = .labelColor
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        outputHeader.font = .systemFont(ofSize: 11, weight: .bold)
+        outputHeader.font = .systemFont(ofSize: 10, weight: .bold)
         outputHeader.textColor = .labelColor
         outputHeader.translatesAutoresizingMaskIntoConstraints = false
 
@@ -97,18 +97,18 @@ final class SoundPopoverViewController: NSViewController {
             titleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 10),
             titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 14),
 
-            sliderRow.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
+            sliderRow.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 7),
             sliderRow.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             sliderRow.trailingAnchor.constraint(equalTo: root.trailingAnchor),
 
-            separator1.topAnchor.constraint(equalTo: sliderRow.bottomAnchor, constant: 6),
+            separator1.topAnchor.constraint(equalTo: sliderRow.bottomAnchor, constant: 7),
             separator1.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 13),
             separator1.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -13),
 
-            outputHeader.topAnchor.constraint(equalTo: separator1.bottomAnchor, constant: 6),
+            outputHeader.topAnchor.constraint(equalTo: separator1.bottomAnchor, constant: 7),
             outputHeader.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 14),
 
-            devicesStack.topAnchor.constraint(equalTo: outputHeader.bottomAnchor, constant: 2),
+            devicesStack.topAnchor.constraint(equalTo: outputHeader.bottomAnchor, constant: 4),
             devicesStack.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             devicesStack.trailingAnchor.constraint(equalTo: root.trailingAnchor),
 
@@ -116,10 +116,10 @@ final class SoundPopoverViewController: NSViewController {
             separator2.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 13),
             separator2.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -13),
 
-            settingsRow.topAnchor.constraint(equalTo: separator2.bottomAnchor, constant: 2),
+            settingsRow.topAnchor.constraint(equalTo: separator2.bottomAnchor, constant: 4),
             settingsRow.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             settingsRow.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            settingsRow.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -6)
+            settingsRow.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -1)
         ])
     }
 
