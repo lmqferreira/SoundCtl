@@ -57,7 +57,7 @@ struct SoundPopoverView: View {
 
     private var volumeRow: some View {
         HStack(spacing: 6) {
-            Image(systemName: model.leftGlyphSymbol)
+            Image(systemName: "speaker.fill")
                 .font(.system(size: 15))
                 .frame(width: 20)
                 .contentShape(Rectangle())

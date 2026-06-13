@@ -104,7 +104,6 @@ final class PopoverModel: ObservableObject {
 
     // MARK: - Glyphs
 
-    var leftGlyphSymbol: String { IconSymbols.leftFlank(muted: mutedLook) }
     var rightGlyphSymbol: String { IconSymbols.rightFlank }
 
     // MARK: - Pure logic (testable)

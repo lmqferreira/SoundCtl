@@ -42,10 +42,6 @@ public enum SelfTests {
         print("[model]")
         check("renders one item per output device", model.devices.count == audio.devices.count)
         check("selected id mirrors the default output", model.selectedID == audio.defaultOutputDeviceID)
-        check("left glyph is plain speaker when not muted",
-              { model.mutedLook = false; return model.leftGlyphSymbol == "speaker.fill" }())
-        check("left glyph is mute slash when muted",
-              { model.mutedLook = true; return model.leftGlyphSymbol == "speaker.slash.fill" }())
         check("right glyph is the static 3-arc speaker", model.rightGlyphSymbol == "speaker.wave.3.fill")
 
         // Sound Settings opens the right URL and asks to close.
