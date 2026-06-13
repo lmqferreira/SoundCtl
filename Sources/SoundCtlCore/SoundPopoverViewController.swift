@@ -251,13 +251,21 @@ final class SoundPopoverViewController: NSViewController {
 
     // MARK: - Actions
 
+    private var lastDragVisualUpdate: TimeInterval = 0
+
     private func handleSliderChange(_ value: Float) {
         guard let device = audio.defaultDevice else { return }
         coordinator.setVolume(value, for: device)
         let muted = value <= 0.001
         slider.isMutedLook = muted
-        updateFlankingGlyphs(value: value, muted: muted)
-        onVolumeStateChange?(value, muted)
+        // Throttle the (relatively expensive) glyph + menu-bar icon redraws to
+        // ~60fps so fast drags stay smooth; the slider itself redraws every event.
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastDragVisualUpdate >= 0.016 {
+            lastDragVisualUpdate = now
+            updateFlankingGlyphs(value: value, muted: muted)
+            onVolumeStateChange?(value, muted)
+        }
     }
 
     /// Clicking the low/high speaker nudges the volume down/up by one step —

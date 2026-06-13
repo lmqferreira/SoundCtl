@@ -27,10 +27,16 @@ final class VolumeSlider: NSControl {
     /// Called with true when the user starts dragging, false when they release.
     var onEditingChanged: ((Bool) -> Void)?
 
-    private let trackHeight: CGFloat = 3
+    private let trackHeight: CGFloat = 4
     private let knobWidth: CGFloat = 18
     private let knobHeight: CGFloat = 13
     private var dragging = false
+
+    /// The accent darkened slightly, for the pressed fill (matches native).
+    static let darkenedAccent: NSColor = {
+        let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? .systemBlue
+        return accent.blended(withFraction: 0.18, of: .black) ?? accent
+    }()
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: NSView.noIntrinsicMetric, height: knobHeight + 6)
@@ -65,10 +71,16 @@ final class VolumeSlider: NSControl {
         let t = trackRect
         let radius = trackHeight / 2
 
-        // Track background.
+        // Track background (unfilled). Lighter at rest, a touch darker while
+        // pressed — like native.
         let bg = NSBezierPath(roundedRect: t, xRadius: radius, yRadius: radius)
-        (isEnabledControl ? NSColor.tertiaryLabelColor : NSColor.quaternaryLabelColor)
-            .setFill()
+        let bgColor: NSColor
+        if !isEnabledControl {
+            bgColor = .quaternaryLabelColor
+        } else {
+            bgColor = dragging ? .tertiaryLabelColor : .quaternaryLabelColor
+        }
+        bgColor.setFill()
         bg.fill()
 
         // Fill left of knob.
@@ -81,6 +93,8 @@ final class VolumeSlider: NSControl {
                 fillColor = .tertiaryLabelColor
             } else if isMutedLook {
                 fillColor = .secondaryLabelColor
+            } else if dragging {
+                fillColor = Self.darkenedAccent
             } else {
                 fillColor = .controlAccentColor
             }
@@ -107,7 +121,9 @@ final class VolumeSlider: NSControl {
         if !isEnabledControl {
             knobColor = NSColor(white: 0.85, alpha: 1)
         } else if dragging {
-            knobColor = NSColor.white.withAlphaComponent(0.55)
+            // Translucent so the blue fill (left) and grey track (right) show
+            // through — the native "left gets bluer" press look.
+            knobColor = NSColor.white.withAlphaComponent(0.4)
         } else {
             knobColor = NSColor.white
         }
@@ -115,32 +131,44 @@ final class VolumeSlider: NSControl {
         NSBezierPath(roundedRect: knobRect, xRadius: knobRadius, yRadius: knobRadius).fill()
         NSGraphicsContext.current?.restoreGraphicsState()
 
-        if !dragging {
-            NSColor.black.withAlphaComponent(0.08).setStroke()
-            let ring = NSBezierPath(roundedRect: knobRect.insetBy(dx: 0.5, dy: 0.5),
-                                    xRadius: knobRadius, yRadius: knobRadius)
-            ring.lineWidth = 0.5
-            ring.stroke()
-        }
+        NSColor.black.withAlphaComponent(dragging ? 0.05 : 0.08).setStroke()
+        let ring = NSBezierPath(roundedRect: knobRect.insetBy(dx: 0.5, dy: 0.5),
+                                xRadius: knobRadius, yRadius: knobRadius)
+        ring.lineWidth = 0.5
+        ring.stroke()
     }
 
     // MARK: - Input
 
+    /// Capture the whole drag in a nested event-tracking loop. Inside an NSMenu
+    /// the menu's own tracking otherwise steals mouse-dragged events when the
+    /// pointer moves vertically off the slider, making it feel "stuck". Owning
+    /// the loop lets us follow the pointer's X regardless of its Y.
     override func mouseDown(with event: NSEvent) {
-        guard isEnabledControl else { return }
+        guard isEnabledControl, let window = window else { return }
         dragging = true
-        needsDisplay = true
         onEditingChanged?(true)
         updateValue(with: event)
-    }
+        needsDisplay = true
+        displayIfNeeded()
 
-    override func mouseDragged(with event: NSEvent) {
-        guard dragging else { return }
-        updateValue(with: event)
-    }
+        trackingLoop: while true {
+            let mask: NSEvent.EventTypeMask = [.leftMouseDragged, .leftMouseUp]
+            guard let next = window.nextEvent(matching: mask,
+                                              until: .distantFuture,
+                                              inMode: .eventTracking,
+                                              dequeue: true) else { continue }
+            switch next.type {
+            case .leftMouseDragged:
+                updateValue(with: next)
+                displayIfNeeded()
+            case .leftMouseUp:
+                break trackingLoop
+            default:
+                break
+            }
+        }
 
-    override func mouseUp(with event: NSEvent) {
-        guard dragging else { return }
         dragging = false
         needsDisplay = true
         onEditingChanged?(false)
