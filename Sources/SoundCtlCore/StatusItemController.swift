@@ -99,35 +99,10 @@ final class StatusItemController {
     }
 
     /// Headphones when the output is headphones, `speaker.slash.fill` at
-    /// zero/mute, otherwise the variable 3-arc speaker tracking the level. The
-    /// level is animated so the waves fade in smoothly (0→1→2→3) like the HUD,
-    /// rather than snapping at each threshold.
+    /// zero/mute, otherwise the variable 3-arc speaker tracking the level.
     private func updateIcon(value: Float, muted: Bool) {
         let headphones = audio.defaultDevice?.isHeadphones ?? false
-        if muted || headphones {
-            iconTimer?.invalidate()
-            iconTimer = nil
-            displayedLevel = value
-            applyIcon(value: value, muted: muted, headphones: headphones)
-            return
-        }
-        animFrom = displayedLevel
-        animTo = max(0, min(1, value))
-        animStart = Date()
-        guard iconTimer == nil else { return }
-        iconTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
-            guard let self else { timer.invalidate(); return }
-            let elapsed = Date().timeIntervalSince(self.animStart)
-            let t = min(1.0, elapsed / Self.iconAnimDuration)
-            let eased = Float(t * t * (3 - 2 * t))   // smoothstep
-            self.displayedLevel = self.animFrom + (self.animTo - self.animFrom) * eased
-            self.applyIcon(value: self.displayedLevel, muted: false, headphones: false)
-            if t >= 1 {
-                self.displayedLevel = self.animTo
-                timer.invalidate()
-                self.iconTimer = nil
-            }
-        }
+        applyIcon(value: value, muted: muted, headphones: headphones)
     }
 
     private func applyIcon(value: Float, muted: Bool, headphones: Bool) {
@@ -149,13 +124,6 @@ final class StatusItemController {
         button.image = image
         if panel.isShown { button.highlight(true) }
     }
-
-    private var displayedLevel: Float = 0
-    private var animFrom: Float = 0
-    private var animTo: Float = 0
-    private var animStart = Date()
-    private var iconTimer: Timer?
-    private static let iconAnimDuration: TimeInterval = 0.45
 
     private static let iconPointSize: CGFloat = 15
     private static let headphonesPointSize: CGFloat = 14
