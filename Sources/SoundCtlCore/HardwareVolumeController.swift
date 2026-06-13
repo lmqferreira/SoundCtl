@@ -9,8 +9,10 @@ import ApplicationServices
 /// through so the system handles normal devices itself.
 final class HardwareVolumeController {
 
-    /// Volume change per key press (matches the native 1/16 audio step).
-    static let step: Float = 1.0 / 16.0
+    /// Volume-key value grid (in 0–100 monitor units): steps of 2 up to 10,
+    /// then 5 up to 50, then 10 up to 100. Pressing up/down moves to the next
+    /// grid value (snapping cleanly even from an off-grid level).
+    static let stepGrid: [Int] = [0, 2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100]
 
     private let audio: AudioController
     private let coordinator: VolumeCoordinator
@@ -66,8 +68,8 @@ final class HardwareVolumeController {
 
         ensureCache(device: device, display: display)
         switch key {
-        case .up:   applyDelta(Self.step, device: device)
-        case .down: applyDelta(-Self.step, device: device)
+        case .up:   applyVolume(Self.nextVolume(current: cachedVolume ?? 0, up: true), device: device)
+        case .down: applyVolume(Self.nextVolume(current: cachedVolume ?? 0, up: false), device: device)
         case .mute: if !isRepeat { toggleMute(device: device) }
         }
         return true
@@ -83,8 +85,7 @@ final class HardwareVolumeController {
         }
     }
 
-    private func applyDelta(_ delta: Float, device: AudioDevice) {
-        let new = Self.stepped(cachedVolume ?? 0, delta: delta)
+    private func applyVolume(_ new: Float, device: AudioDevice) {
         cachedVolume = new
         muted = new <= 0.001
         preMuteVolume = nil
@@ -95,7 +96,7 @@ final class HardwareVolumeController {
     private func toggleMute(device: AudioDevice) {
         if muted {
             let restore = preMuteVolume ?? 0
-            let value = restore <= 0.001 ? Self.step : restore
+            let value = restore <= 0.001 ? 0.10 : restore
             cachedVolume = value
             muted = false
             preMuteVolume = nil
@@ -118,7 +119,11 @@ final class HardwareVolumeController {
 
     // MARK: - Pure logic (testable)
 
-    static func stepped(_ current: Float, delta: Float) -> Float {
-        max(0, min(1, current + delta))
+    /// The next grid value above/below the current 0...1 level.
+    static func nextVolume(current: Float, up: Bool) -> Float {
+        let pct = Int((max(0, min(1, current)) * 100).rounded())
+        let target = up ? (stepGrid.first { $0 > pct } ?? 100)
+                        : (stepGrid.last { $0 < pct } ?? 0)
+        return Float(target) / 100
     }
 }

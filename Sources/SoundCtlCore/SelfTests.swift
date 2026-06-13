@@ -130,13 +130,17 @@ public enum SelfTests {
 
         // MARK: Hardware volume keys
         print("[hardware]")
-        check("volume step is 1/16", abs(HardwareVolumeController.step - 1.0/16.0) < 0.0001)
-        check("stepping up adds 1/16",
-              abs(HardwareVolumeController.stepped(0.5, delta: HardwareVolumeController.step) - (0.5 + 1.0/16.0)) < 0.0001)
-        check("stepping down subtracts 1/16",
-              abs(HardwareVolumeController.stepped(0.5, delta: -HardwareVolumeController.step) - (0.5 - 1.0/16.0)) < 0.0001)
-        check("step clamps at max", HardwareVolumeController.stepped(1, delta: HardwareVolumeController.step) == 1)
-        check("step clamps at min", HardwareVolumeController.stepped(0, delta: -HardwareVolumeController.step) == 0)
+        func near(_ a: Float, _ b: Float) -> Bool { abs(a - b) < 0.001 }
+        check("up from 0 -> 2", near(HardwareVolumeController.nextVolume(current: 0.00, up: true), 0.02))
+        check("up from 8 -> 10", near(HardwareVolumeController.nextVolume(current: 0.08, up: true), 0.10))
+        check("up from 10 -> 15", near(HardwareVolumeController.nextVolume(current: 0.10, up: true), 0.15))
+        check("up from 50 -> 60", near(HardwareVolumeController.nextVolume(current: 0.50, up: true), 0.60))
+        check("up clamps at 100", near(HardwareVolumeController.nextVolume(current: 1.00, up: true), 1.00))
+        check("down from 10 -> 8", near(HardwareVolumeController.nextVolume(current: 0.10, up: false), 0.08))
+        check("down from 15 -> 10", near(HardwareVolumeController.nextVolume(current: 0.15, up: false), 0.10))
+        check("down clamps at 0", near(HardwareVolumeController.nextVolume(current: 0.00, up: false), 0.00))
+        check("off-grid up snaps to next (37 -> 40)", near(HardwareVolumeController.nextVolume(current: 0.37, up: true), 0.40))
+        check("off-grid down snaps to prev (37 -> 35)", near(HardwareVolumeController.nextVolume(current: 0.37, up: false), 0.35))
 
         var bdRunning = BetterDisplayDetector()
         bdRunning.runningBundleIDs = { ["pro.betterdisplay.BetterDisplay", "com.apple.finder"] }
