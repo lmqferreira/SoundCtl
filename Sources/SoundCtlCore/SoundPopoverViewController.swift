@@ -178,7 +178,6 @@ final class SoundPopoverViewController: NSViewController {
 
             slider.leadingAnchor.constraint(equalTo: leftGlyph.trailingAnchor, constant: 6),
             slider.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-            slider.heightAnchor.constraint(equalToConstant: 20),
 
             rightGlyph.leadingAnchor.constraint(equalTo: slider.trailingAnchor, constant: 6),
             rightGlyph.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -14),
