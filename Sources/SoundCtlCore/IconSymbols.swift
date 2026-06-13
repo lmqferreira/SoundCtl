@@ -4,10 +4,11 @@ import Foundation
 /// icon and the popover glyphs stay consistent (and unit-testable).
 enum IconSymbols {
 
-    /// Menu-bar status icon: the muted (slash) speaker at zero/mute, otherwise
-    /// the variable 3-arc speaker whose arcs grey out with the level.
-    static func statusBar(muted: Bool) -> String {
-        muted ? "speaker.slash.fill" : "speaker.wave.3.fill"
+    /// Menu-bar status icon: headphones when the output is headphones, otherwise
+    /// the muted (slash) speaker at zero/mute, or the variable 3-arc speaker.
+    static func statusBar(muted: Bool, headphones: Bool = false) -> String {
+        if headphones { return "headphones" }
+        return muted ? "speaker.slash.fill" : "speaker.wave.3.fill"
     }
 
     /// Low-side glyph beside the slider: plain speaker, or slash when muted.

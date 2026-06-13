@@ -123,6 +123,8 @@ public enum SelfTests {
               IconSymbols.statusBar(muted: true) == "speaker.slash.fill")
         check("status icon is variable arcs when not muted",
               IconSymbols.statusBar(muted: false) == "speaker.wave.3.fill")
+        check("status icon is headphones when output is headphones",
+              IconSymbols.statusBar(muted: false, headphones: true) == "headphones")
         check("zero volume reads as muted",
               VolumeCoordinator.isMutedLook(value: 0, hardwareMuted: false))
         check("hardware mute reads as muted",

@@ -68,14 +68,15 @@ final class StatusItemController {
         updateIcon(value: state.value, muted: state.mutedLook)
     }
 
-    /// Always `speaker.wave.3.fill` as a variable symbol (constant width), or
-    /// `speaker.slash.fill` at zero/mute.
+    /// Headphones when the output is headphones, `speaker.slash.fill` at
+    /// zero/mute, otherwise the variable 3-arc speaker tracking the level.
     private func updateIcon(value: Float, muted: Bool) {
         guard let button = statusItem.button else { return }
         let config = NSImage.SymbolConfiguration(pointSize: Self.iconPointSize, weight: .regular)
-        let symbol = IconSymbols.statusBar(muted: muted)
+        let headphones = audio.defaultDevice?.isHeadphones ?? false
+        let symbol = IconSymbols.statusBar(muted: muted, headphones: headphones)
         let image: NSImage?
-        if muted {
+        if headphones || muted {
             image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Sound")?
                 .withSymbolConfiguration(config)
         } else {

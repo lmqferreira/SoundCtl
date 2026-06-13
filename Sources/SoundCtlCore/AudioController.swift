@@ -34,6 +34,10 @@ struct AudioDevice: Equatable {
         transport == kAudioDeviceTransportTypeDisplayPort ||
         transport == kAudioDeviceTransportTypeHDMI
     }
+
+    /// True when this device is shown as headphones (Bluetooth), so the menu-bar
+    /// icon can switch from a speaker to headphones like the native control.
+    var isHeadphones: Bool { iconSymbol == "headphones" }
 }
 
 /// Thin wrapper over the CoreAudio HAL: enumerate output devices, read/write
