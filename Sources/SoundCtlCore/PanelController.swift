@@ -9,6 +9,24 @@ final class KeyableWindow: NSWindow {
     override var canBecomeMain: Bool { true }
 }
 
+/// NSHostingView that reports when its SwiftUI content's fitting size changes, so
+/// the hosting windows can resize to fit (the device list grows/shrinks, and the
+/// first layout pass settles slightly after the window is first shown).
+final class SizingHostingView: NSHostingView<SoundPopoverView> {
+    var onContentSizeChange: ((NSSize) -> Void)?
+    private var reported: NSSize = .zero
+
+    override func layout() {
+        super.layout()
+        let size = fittingSize
+        guard size.width > 0, size.height > 0 else { return }
+        if abs(size.width - reported.width) > 0.5 || abs(size.height - reported.height) > 0.5 {
+            reported = size
+            onContentSizeChange?(size)
+        }
+    }
+}
+
 /// Hosts the Sound popover using the validated two-window recipe:
 ///   • a glass window (real NSGlassEffectView, the exact native material), and
 ///   • a transparent content window layered ON TOP hosting the SwiftUI view.
@@ -19,18 +37,20 @@ final class PanelController {
 
     private let contentWindow: KeyableWindow
     private let glassWindow: NSWindow
-    private let hosting: NSHostingView<SoundPopoverView>
+    private let hosting: SizingHostingView
     private let model: PopoverModel
 
     private(set) var isShown = false
     private var resignObserver: NSObjectProtocol?
     private var lastCloseTime: Date?
+    /// Screen-space top-left the popover is anchored to (so it grows downward).
+    private var anchorTopLeft: NSPoint?
 
     var onVisibilityChanged: ((Bool) -> Void)?
 
     init(model: PopoverModel) {
         self.model = model
-        hosting = NSHostingView(rootView: SoundPopoverView(model: model))
+        hosting = SizingHostingView(rootView: SoundPopoverView(model: model))
 
         contentWindow = KeyableWindow(contentRect: .zero, styleMask: [.borderless],
                                       backing: .buffered, defer: true)
@@ -63,6 +83,10 @@ final class PanelController {
             effect.layer?.cornerRadius = 13
             glassWindow.contentView = effect
         }
+
+        hosting.onContentSizeChange = { [weak self] size in
+            self?.resizeToContent(size)
+        }
     }
 
     func toggle(relativeTo button: NSStatusBarButton) {
@@ -92,12 +116,17 @@ final class PanelController {
 
     private func layoutContent() -> NSSize {
         model.reload()
-        let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: size)
-        return size
+        // Force SwiftUI to lay out at the fixed content width *before* measuring,
+        // so the first frame already fits the (reloaded) device list instead of
+        // settling a beat later.
+        let width = SoundPopoverView.contentWidth
+        hosting.setFrameSize(NSSize(width: width, height: 2000))
+        hosting.layoutSubtreeIfNeeded()
+        return NSSize(width: width, height: hosting.fittingSize.height)
     }
 
     private func present(at origin: NSPoint, size: NSSize, observeResign: Bool) {
+        anchorTopLeft = NSPoint(x: origin.x, y: origin.y + size.height)
         let frame = NSRect(origin: origin, size: size)
         glassWindow.setFrame(frame, display: true)
         contentWindow.setFrame(frame, display: true)
@@ -130,6 +159,18 @@ final class PanelController {
         if glassWindow.parent != nil { contentWindow.removeChildWindow(glassWindow) }
         glassWindow.orderOut(nil)
         contentWindow.orderOut(nil)
+        anchorTopLeft = nil
+    }
+
+    /// Keeps the popover pinned to its top-left anchor while the content's
+    /// fitting size settles (so it grows downward, never spilling past the glass).
+    private func resizeToContent(_ contentSize: NSSize) {
+        guard isShown, let top = anchorTopLeft else { return }
+        let size = NSSize(width: SoundPopoverView.contentWidth, height: contentSize.height)
+        let frame = NSRect(x: top.x, y: top.y - size.height, width: size.width, height: size.height)
+        guard frame != contentWindow.frame else { return }
+        glassWindow.setFrame(frame, display: true)
+        contentWindow.setFrame(frame, display: true)
     }
 
     /// Bottom-left origin: shown to the right of the icon by default
