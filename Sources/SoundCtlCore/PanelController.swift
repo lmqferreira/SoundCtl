@@ -38,6 +38,7 @@ final class PanelController {
 
     private(set) var isShown = false
     private var resignObserver: NSObjectProtocol?
+    private var scrollMonitor: Any?
     private var lastCloseTime: Date?
     private var anchorTopLeft: NSPoint?
 
@@ -140,11 +141,25 @@ final class PanelController {
 
         isShown = true
         onVisibilityChanged?(true)
+        installScrollMonitor()
         if observeResign {
             resignObserver = NotificationCenter.default.addObserver(
                 forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
                 self?.close()
             }
+        }
+    }
+
+    /// Scroll the wheel (or two-finger swipe) anywhere over the popover to nudge
+    /// the volume — routed through the same path as the slider (DDC for displays).
+    private func installScrollMonitor() {
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, self.isShown,
+                  self.window.frame.contains(NSEvent.mouseLocation) else { return event }
+            let raw = Double(event.scrollingDeltaY)
+            let lines = event.hasPreciseScrollingDeltas ? raw / 40.0 : raw
+            self.model.nudgeVolume(by: lines * (1.0 / 16.0))
+            return nil
         }
     }
 
@@ -154,6 +169,8 @@ final class PanelController {
         lastCloseTime = Date()
         if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
         resignObserver = nil
+        if let scrollMonitor { NSEvent.removeMonitor(scrollMonitor) }
+        scrollMonitor = nil
         onVisibilityChanged?(false)
         window.orderOut(nil)
         anchorTopLeft = nil

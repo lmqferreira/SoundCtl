@@ -84,6 +84,12 @@ final class PopoverModel: ObservableObject {
 
     // MARK: - Devices / settings
 
+    /// Nudge the volume by a delta (used by scroll-wheel over the popover).
+    func nudgeVolume(by delta: Double) {
+        guard enabled, audio.defaultDevice != nil, delta != 0 else { return }
+        setVolume(max(0, min(1, volume + delta)))
+    }
+
     func select(_ id: AudioDeviceID) {
         guard let device = audio.devices.first(where: { $0.id == id }) else { return }
         audio.setDefaultDevice(device)
