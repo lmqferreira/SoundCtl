@@ -99,12 +99,37 @@ final class StatusItemController {
     }
 
     /// Headphones when the output is headphones, `speaker.slash.fill` at
-    /// zero/mute, otherwise the variable 3-arc speaker tracking the level.
+    /// zero/mute, otherwise the variable 3-arc speaker tracking the level. The
+    /// level is animated so the waves fade in smoothly (0→1→2→3) like the HUD,
+    /// rather than snapping at each threshold.
     private func updateIcon(value: Float, muted: Bool) {
-        guard let button = statusItem.button else { return }
         let headphones = audio.defaultDevice?.isHeadphones ?? false
-        // The headphones glyph is optically larger than the speaker at the same
-        // point size, so render it a touch smaller to match the native menu bar.
+        if muted || headphones {
+            iconTimer?.invalidate()
+            iconTimer = nil
+            displayedLevel = value
+            applyIcon(value: value, muted: muted, headphones: headphones)
+            return
+        }
+        targetLevel = max(0, min(1, value))
+        guard iconTimer == nil else { return }
+        iconTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            let diff = self.targetLevel - self.displayedLevel
+            if abs(diff) < 0.004 {
+                self.displayedLevel = self.targetLevel
+                self.applyIcon(value: self.displayedLevel, muted: false, headphones: false)
+                timer.invalidate()
+                self.iconTimer = nil
+            } else {
+                self.displayedLevel += diff * 0.28
+                self.applyIcon(value: self.displayedLevel, muted: false, headphones: false)
+            }
+        }
+    }
+
+    private func applyIcon(value: Float, muted: Bool, headphones: Bool) {
+        guard let button = statusItem.button else { return }
         let pointSize = headphones ? Self.headphonesPointSize : Self.iconPointSize
         let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .regular)
         let symbol = IconSymbols.statusBar(muted: muted, headphones: headphones)
@@ -122,6 +147,10 @@ final class StatusItemController {
         button.image = image
         if panel.isShown { button.highlight(true) }
     }
+
+    private var displayedLevel: Float = 0
+    private var targetLevel: Float = 0
+    private var iconTimer: Timer?
 
     private static let iconPointSize: CGFloat = 15
     private static let headphonesPointSize: CGFloat = 14
