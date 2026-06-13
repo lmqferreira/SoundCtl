@@ -90,25 +90,16 @@ struct DeviceRowView: View {
     let selected: Bool
     @State private var hover = false
 
-    /// Unselected device circle, tuned per appearance (raising a mid-grey's
-    /// opacity lightens it over dark glass, so light/dark need opposite values).
-    private static let unselectedCircle = Color(nsColor: NSColor(name: nil) { appearance in
-        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        return isDark
-            ? NSColor(white: 0.5, alpha: 0.18)
-            : NSColor(white: 0.5, alpha: 0.25)
-    })
-
     var body: some View {
         HStack(spacing: 9) {
             ZStack {
                 Circle()
                     .fill(selected ? AnyShapeStyle(Color.accentColor)
-                                   : AnyShapeStyle(Self.unselectedCircle))
+                                   : AnyShapeStyle(Color(white: 0.5, opacity: 0.25)))
                     .frame(width: 26, height: 26)
                 Image(systemName: item.symbol)
                     .font(.system(size: 15))
-                    .foregroundStyle(selected ? .white : .primary)
+                    .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
             }
             Text(item.name)
                 .font(.system(size: 13))

@@ -35,6 +35,9 @@ public enum AppMain {
     private static func runDebugPopover(arguments: [String]) {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
+        if arguments.contains("--dark") {
+            app.appearance = NSAppearance(named: .darkAqua)
+        }
         let audio = AudioController()
         let ddc = DDCController()
         let coordinator = VolumeCoordinator(audio: audio, ddc: ddc)
