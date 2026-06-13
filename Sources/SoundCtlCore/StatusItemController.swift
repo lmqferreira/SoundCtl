@@ -1,12 +1,6 @@
 import AppKit
 import ServiceManagement
 
-/// How the menu-bar item is shown, mirroring the native right-click options.
-enum MenuBarVisibility: String {
-    case alwaysShow
-    case showWhenActive
-}
-
 /// Owns the menu-bar status item and a key panel hosting the Sound content.
 /// A key window is required so the native NSSlider renders active (blue); the
 /// panel also gives us the exact right/left placement and the Liquid Glass
@@ -121,25 +115,11 @@ final class StatusItemController {
         }
     }
 
-    // MARK: - Right-click menu (menu-bar visibility + login + quit)
+    // MARK: - Right-click menu (app controls)
 
     private func showContextMenu(from button: NSStatusBarButton) {
         if panel.isShown { panel.close() }
         let menu = NSMenu()
-
-        let always = NSMenuItem(title: "Always Show In Menu Bar",
-                                action: #selector(setAlwaysShow), keyEquivalent: "")
-        always.target = self
-        always.state = visibility == .alwaysShow ? .on : .off
-
-        let active = NSMenuItem(title: "Show When Active",
-                                action: #selector(setShowWhenActive), keyEquivalent: "")
-        active.target = self
-        active.state = visibility == .showWhenActive ? .on : .off
-
-        let hide = NSMenuItem(title: "Don't Show in Menu Bar",
-                              action: #selector(setDontShow), keyEquivalent: "")
-        hide.target = self
 
         let login = NSMenuItem(title: "Open at Login",
                                action: #selector(toggleOpenAtLogin), keyEquivalent: "")
@@ -149,8 +129,6 @@ final class StatusItemController {
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
 
-        for item in [always, active, hide] { menu.addItem(item) }
-        menu.addItem(.separator())
         menu.addItem(login)
         menu.addItem(.separator())
         menu.addItem(quit)
@@ -158,30 +136,6 @@ final class StatusItemController {
         menu.popUp(positioning: nil,
                    at: NSPoint(x: 0, y: button.bounds.height + 5),
                    in: button)
-    }
-
-    private var visibility: MenuBarVisibility {
-        get {
-            MenuBarVisibility(rawValue: UserDefaults.standard.string(forKey: "menuBarVisibility") ?? "")
-                ?? .alwaysShow
-        }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "menuBarVisibility") }
-    }
-
-    @objc private func setAlwaysShow() {
-        visibility = .alwaysShow
-        statusItem.isVisible = true
-    }
-
-    @objc private func setShowWhenActive() {
-        visibility = .showWhenActive
-        statusItem.isVisible = true
-    }
-
-    /// Hides the icon for this session; it returns on next launch (we don't
-    /// persist the hidden state, so the user can always relaunch to restore it).
-    @objc private func setDontShow() {
-        statusItem.isVisible = false
     }
 
     // MARK: - Open at Login (ServiceManagement)
