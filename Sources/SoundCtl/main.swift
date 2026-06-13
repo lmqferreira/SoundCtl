@@ -1,0 +1,3 @@
+import SoundCtlCore
+
+AppMain.run()
