@@ -94,7 +94,7 @@ final class StatusItemController {
     }
 
     private static let iconPointSize: CGFloat = 15
-    private static let headphonesPointSize: CGFloat = 13.5
+    private static let headphonesPointSize: CGFloat = 14
 
     // MARK: - Panel
 
