@@ -47,8 +47,12 @@ public enum AppMain {
         DispatchQueue.main.async {
             panel.debugShow(at: NSPoint(x: 500, y: 500))
         }
+        if arguments.contains("--cycle") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { panel.close() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { panel.debugShow(at: NSPoint(x: 500, y: 500)) }
+        }
         Thread.detachNewThread {
-            Thread.sleep(forTimeInterval: 1.5)
+            Thread.sleep(forTimeInterval: 2.0)
             let t = Process()
             t.launchPath = "/usr/sbin/screencapture"
             t.arguments = ["-x", out]
