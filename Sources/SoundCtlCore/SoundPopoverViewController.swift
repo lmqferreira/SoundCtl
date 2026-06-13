@@ -41,7 +41,9 @@ final class SoundPopoverViewController: NSViewController {
 
     override func loadView() {
         let effect = NSVisualEffectView()
-        effect.material = .menu
+        // `.popover` is more translucent than `.menu` (which looked too opaque
+        // vs the native Sound popover) and is the correct material for a popover.
+        effect.material = .popover
         effect.blendingMode = .behindWindow
         effect.state = .active
         // Round the corners with the layer's cornerRadius but WITHOUT
