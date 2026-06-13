@@ -178,6 +178,7 @@ final class SoundPopoverViewController: NSViewController {
 
             slider.leadingAnchor.constraint(equalTo: leftGlyph.trailingAnchor, constant: 6),
             slider.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            slider.heightAnchor.constraint(equalToConstant: 20),
 
             rightGlyph.leadingAnchor.constraint(equalTo: slider.trailingAnchor, constant: 6),
             rightGlyph.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -14),
@@ -259,9 +260,9 @@ final class SoundPopoverViewController: NSViewController {
         displayedDeviceIDs = currentIDs
     }
 
-    /// Native renders the high-side glyph as a *variable* SF Symbol: the wave
-    /// arcs fill in proportion to the volume and grey out below the current
-    /// level. The low-side glyph is a static plain speaker.
+    /// Native shows two *static* flanking glyphs: a plain speaker on the low
+    /// side and a full `speaker.wave.3.fill` on the high side. Neither animates
+    /// with the volume level (only the menu-bar icon does).
     private func updateFlankingGlyphs(value: Float, muted: Bool) {
         let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
 
@@ -269,9 +270,7 @@ final class SoundPopoverViewController: NSViewController {
                                   accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
 
-        let variable = muted ? 0.0 : Double(max(0, min(1, value)))
         rightGlyph.image = NSImage(systemSymbolName: IconSymbols.rightFlank,
-                                   variableValue: variable,
                                    accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
     }
