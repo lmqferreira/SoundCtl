@@ -57,20 +57,24 @@ open build/SoundCtl.app
 ## Install
 
 ```bash
+scripts/setup-signing.sh  # one-time: stable local signing so the grant persists
 scripts/install.sh        # builds release and installs to /Applications
 ```
 
-Installing to **/Applications** is recommended: *Launch at Login* (`SMAppService`)
-and the volume-key Accessibility grant register reliably only for an app in
-/Applications.
+Run **`scripts/setup-signing.sh` once.** It creates a local self-signed
+code-signing identity ("SoundCtl Self-Signed") whose designated requirement is
+keyed on the certificate, not the per-build `cdhash` — so the **Accessibility
+grant and Launch-at-Login survive rebuilds/reinstalls**. Without it the app is
+ad-hoc signed and every reinstall invalidates the Accessibility permission
+(you'd have to re-authorise each time). The private key lives only in your login
+keychain; nothing secret is committed.
 
-> **Code signing & Accessibility:** the app is **ad-hoc signed**. Because TCC keys
-> the Accessibility grant to the binary's code signature, **every rebuild/reinstall
-> invalidates the grant** — you'll need to re-authorise it (the menu offers to do
-> so; or `tccutil reset Accessibility com.lmqferreira.soundctl`). A stable Developer
-> ID signature would make the grant persist across updates. On first launch
-> Gatekeeper may also warn that it's from an unidentified developer — right-click
-> the app and choose **Open**, or clear quarantine with
+Installing to **/Applications** is also recommended so `SMAppService`
+(Launch at Login) registers reliably.
+
+> The cert is self-signed (untrusted by Gatekeeper). On first launch macOS may
+> warn it's from an unidentified developer — right-click the app and choose
+> **Open**, or clear quarantine with
 > `xattr -dr com.apple.quarantine /Applications/SoundCtl.app`.
 
 ## Usage
