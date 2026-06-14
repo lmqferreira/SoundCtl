@@ -149,6 +149,27 @@ public enum SelfTests {
         bdAbsent.runningBundleIDs = { ["com.apple.finder", "com.apple.dock"] }
         check("BetterDisplay absent when not running", !bdAbsent.isRunning)
 
+        // Media-key decode (NSSystemDefined data1 bit-twiddling).
+        check("decode volume-up key-down", {
+            let d = VolumeKeyMonitor.decode(data1: (0 << 16) | 0x0A00)
+            return d.key == .up && d.isDown && !d.isRepeat
+        }())
+        check("decode volume-down key-down", {
+            let d = VolumeKeyMonitor.decode(data1: (1 << 16) | 0x0A00)
+            return d.key == .down && d.isDown
+        }())
+        check("decode mute key-down", VolumeKeyMonitor.decode(data1: (7 << 16) | 0x0A00).key == .mute)
+        check("decode key-up (not down)", !VolumeKeyMonitor.decode(data1: (0 << 16) | 0x0B00).isDown)
+        check("decode key-repeat flag", VolumeKeyMonitor.decode(data1: (0 << 16) | 0x0A01).isRepeat)
+        check("decode ignores non-volume key", VolumeKeyMonitor.decode(data1: (16 << 16) | 0x0A00).key == nil)
+
+        // DDC/CI checksum (XOR), with the real VCP 0x62 read-packet vector.
+        var pkt: [UInt8] = [0x82, 0x01, 0x62, 0x00]
+        check("DDC checksum matches MonitorControl wire format",
+              DDCDisplay.checksum(chk: 0x6E, data: &pkt, start: 0, end: 2) == 0x8F)
+        var xs: [UInt8] = [0x01, 0x02, 0x03]
+        check("DDC checksum is XOR identity", DDCDisplay.checksum(chk: 0, data: &xs, start: 0, end: 2) == 0x00)
+
         // MARK: Popover placement + content sizing
         print("[placement]")
         let visible = NSRect(x: 0, y: 0, width: 1440, height: 900)

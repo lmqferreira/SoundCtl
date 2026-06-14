@@ -105,7 +105,7 @@ final class VolumeHUD {
         model.muted = muted
 
         let size = panel.frame.size
-        let screen = (NSScreen.main ?? NSScreen.screens.first)
+        let screen = Self.screenUnderMouse()
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         // Top-right, just under the menu bar — matching the macOS volume OSD.
         let margin: CGFloat = 16
@@ -129,5 +129,12 @@ final class VolumeHUD {
             ctx.duration = 0.3
             panel.animator().alphaValue = 0
         }
+    }
+
+    /// The screen the pointer is on (so the HUD shows where the user is looking),
+    /// falling back to the main screen.
+    private static func screenUnderMouse() -> NSScreen? {
+        let mouse = NSEvent.mouseLocation
+        return NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
     }
 }

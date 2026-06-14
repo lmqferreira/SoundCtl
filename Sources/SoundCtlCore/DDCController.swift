@@ -1,7 +1,15 @@
 import Foundation
 import IOKit
 import CoreAudio
+import CoreGraphics
 import CDDC
+
+/// C callback for display reconfiguration; forwards to the DDCController in
+/// `userInfo`. Acts only on the "after" pass (no begin-configuration flag).
+private let ddcDisplayReconfigurationCallback: CGDisplayReconfigurationCallBack = { _, flags, userInfo in
+    guard let userInfo, !flags.contains(.beginConfigurationFlag) else { return }
+    Unmanaged<DDCController>.fromOpaque(userInfo).takeUnretainedValue().handleDisplayReconfiguration()
+}
 
 /// Maps an audio output device to a physical display reachable over DDC/CI and
 /// provides volume read/write via the private IOAVService API (Apple Silicon).
@@ -20,13 +28,31 @@ final class DDCController {
     private var services: [ServiceInfo] = []
     private var cache: [AudioDeviceID: DDCDisplay] = [:]
 
+    /// Invoked (main thread) after the display set changes, so callers can
+    /// re-seed cached levels and re-render.
+    var onDisplaysChanged: (() -> Void)?
+
     init() {
         discover()
+        CGDisplayRegisterReconfigurationCallback(ddcDisplayReconfigurationCallback,
+                                                 Unmanaged.passUnretained(self).toOpaque())
+    }
+
+    deinit {
+        CGDisplayRemoveReconfigurationCallback(ddcDisplayReconfigurationCallback,
+                                               Unmanaged.passUnretained(self).toOpaque())
     }
 
     func discover() {
         services = Self.collectExternalServices()
         cache.removeAll()
+    }
+
+    /// Re-discover when a monitor is plugged/unplugged so we never keep talking
+    /// to a stale `IOAVService`.
+    func handleDisplayReconfiguration() {
+        discover()
+        onDisplaysChanged?()
     }
 
     /// Returns a DDC handle if `device` corresponds to an external display we can
@@ -37,12 +63,16 @@ final class DDCController {
         if services.isEmpty { discover() }
 
         let lowerName = device.name.lowercased()
-        let byName = services.first {
+        // Prefer an exact product-name match, then a containment match, and only
+        // fall back to "the single external display" when there is exactly one
+        // (so two identical monitors never silently mis-route).
+        let exact = services.first { !$0.productName.isEmpty && $0.productName.lowercased() == lowerName }
+        let contains = services.first {
             !$0.productName.isEmpty &&
             (lowerName.contains($0.productName.lowercased()) ||
              $0.productName.lowercased().contains(lowerName))
         }
-        let match = byName ?? (services.count == 1 ? services.first : nil)
+        let match = exact ?? contains ?? (services.count == 1 ? services.first : nil)
         guard let info = match else { return nil }
 
         let display = DDCDisplay(service: info.service)
@@ -114,8 +144,7 @@ final class DDCController {
 
     private static func productName(of entry: io_service_t) -> String {
         guard let raw = IORegistryEntryCreateCFProperty(
-            entry, "DisplayAttributes" as CFString, kCFAllocatorDefault,
-            IOOptionBits(kIORegistryIterateRecursively)),
+            entry, "DisplayAttributes" as CFString, kCFAllocatorDefault, IOOptionBits(0)),
             let attrs = raw.takeRetainedValue() as? NSDictionary,
             let product = attrs.value(forKey: "ProductAttributes") as? NSDictionary,
             let name = product.value(forKey: "ProductName") as? String else {
@@ -126,8 +155,7 @@ final class DDCController {
 
     private static func externalService(of entry: io_service_t) -> CFTypeRef? {
         guard let raw = IORegistryEntryCreateCFProperty(
-            entry, "Location" as CFString, kCFAllocatorDefault,
-            IOOptionBits(kIORegistryIterateRecursively)),
+            entry, "Location" as CFString, kCFAllocatorDefault, IOOptionBits(0)),
             let location = raw.takeRetainedValue() as? String,
             location == "External" else {
             return nil
@@ -238,7 +266,7 @@ final class DDCDisplay {
         return success
     }
 
-    private static func checksum(chk: UInt8, data: inout [UInt8], start: Int, end: Int) -> UInt8 {
+    static func checksum(chk: UInt8, data: inout [UInt8], start: Int, end: Int) -> UInt8 {
         var result = chk
         for i in start ... end {
             result ^= data[i]

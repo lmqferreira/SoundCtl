@@ -64,9 +64,14 @@ Installing to **/Applications** is recommended: *Launch at Login* (`SMAppService
 and the volume-key Accessibility grant register reliably only for an app in
 /Applications.
 
-> The app is ad-hoc signed. On first launch Gatekeeper may warn that it's from an
-> unidentified developer — right-click the app and choose **Open**, or clear the
-> quarantine flag with `xattr -dr com.apple.quarantine /Applications/SoundCtl.app`.
+> **Code signing & Accessibility:** the app is **ad-hoc signed**. Because TCC keys
+> the Accessibility grant to the binary's code signature, **every rebuild/reinstall
+> invalidates the grant** — you'll need to re-authorise it (the menu offers to do
+> so; or `tccutil reset Accessibility com.lmqferreira.soundctl`). A stable Developer
+> ID signature would make the grant persist across updates. On first launch
+> Gatekeeper may also warn that it's from an unidentified developer — right-click
+> the app and choose **Open**, or clear quarantine with
+> `xattr -dr com.apple.quarantine /Applications/SoundCtl.app`.
 
 ## Usage
 
@@ -116,6 +121,9 @@ The Command Line Tools ship no XCTest, so tests run in-process:
   commands. Volume is VCP `0x62`.
 - The on-screen HUD approximates the (private) system volume overlay; it is not a
   pixel match.
+- The UI is **English-only** (not yet localized).
+- Audio device → display matching is by product name (with a single-display
+  fallback); two identical monitors may need an EDID-based mapping.
 - No continuous-integration build is provided: GitHub-hosted runners don't yet
   ship the macOS 26 SDK required by `NSGlassEffectView`.
 

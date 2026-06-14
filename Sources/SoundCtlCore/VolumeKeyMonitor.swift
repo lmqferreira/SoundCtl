@@ -7,7 +7,7 @@ import CoreGraphics
 /// Accessibility permission — `start()` returns false when it isn't granted.
 final class VolumeKeyMonitor {
 
-    enum Key { case up, down, mute }
+    enum Key: Equatable { case up, down, mute }
 
     /// Called for each volume key. `isDown` is true on press (and key repeats);
     /// return true to consume the event (we handled it), false to pass it on to
@@ -26,6 +26,8 @@ final class VolumeKeyMonitor {
 
     var isActive: Bool { eventTap != nil }
 
+    deinit { stop() }
+
     /// Installs the tap on the current run loop. Call on the main thread.
     /// Returns false if Accessibility permission is missing (tap can't be made).
     @discardableResult
@@ -38,6 +40,9 @@ final class VolumeKeyMonitor {
             return monitor.handle(type: type, event: event)
         }
 
+        // refcon is unretained: the monitor must outlive the tap. That holds here
+        // because it is owned by HardwareVolumeController, which lives for the
+        // whole process; `deinit` also calls `stop()` to remove the tap.
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -81,21 +86,27 @@ final class VolumeKeyMonitor {
             return Unmanaged.passUnretained(event)
         }
 
-        let data1 = nsEvent.data1
+        let decoded = Self.decode(data1: nsEvent.data1)
+        guard let key = decoded.key else { return Unmanaged.passUnretained(event) }
+
+        let consume = handler?(key, decoded.isDown, decoded.isRepeat) ?? false
+        return consume ? nil : Unmanaged.passUnretained(event)
+    }
+
+    /// Pure decode of an NSSystemDefined event's `data1` into a volume key + state
+    /// (extracted so the bit-twiddling is unit-testable without an NSEvent).
+    static func decode(data1: Int) -> (key: Key?, isDown: Bool, isRepeat: Bool) {
         let keyCode = (data1 & 0xFFFF0000) >> 16
         let keyFlags = data1 & 0x0000FFFF
         let isDown = ((keyFlags & 0xFF00) >> 8) == 0x0A
         let isRepeat = (keyFlags & 0x1) == 1
-
-        let key: Key
+        let key: Key?
         switch keyCode {
-        case Self.soundUp: key = .up
-        case Self.soundDown: key = .down
-        case Self.mute: key = .mute
-        default: return Unmanaged.passUnretained(event)
+        case soundUp: key = .up
+        case soundDown: key = .down
+        case mute: key = .mute
+        default: key = nil
         }
-
-        let consume = handler?(key, isDown, isRepeat) ?? false
-        return consume ? nil : Unmanaged.passUnretained(event)
+        return (key, isDown, isRepeat)
     }
 }

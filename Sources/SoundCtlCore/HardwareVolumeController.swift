@@ -79,7 +79,10 @@ final class HardwareVolumeController {
     private func ensureCache(device: AudioDevice, display: DDCDisplay) {
         if cachedDeviceID != device.id || cachedVolume == nil {
             cachedDeviceID = device.id
-            let read = display.readVolume() ?? cachedVolume ?? 0
+            // Non-blocking: use the coordinator's cached DDC level (seeded async
+            // at launch / on device change) — never a synchronous I2C read here,
+            // since this runs in the event-tap callback on the main thread.
+            let read = coordinator.cachedDDCVolume(for: device) ?? cachedVolume ?? 0
             cachedVolume = read
             muted = read <= 0.001
             preMuteVolume = nil
@@ -138,8 +141,14 @@ final class HardwareVolumeController {
     }
 
     private func currentVolume(for device: AudioDevice) -> Float {
-        if cachedDeviceID == device.id, let cached = cachedVolume { return cached }
-        if let display = ddc.display(matching: device) { return display.readVolume() ?? 0 }
+        if ddc.display(matching: device) != nil {
+            // Non-blocking: cached DDC level (our own writes keep it exact; the
+            // coordinator seeds it asynchronously). Never a synchronous I2C read.
+            if cachedDeviceID == device.id, let cached = cachedVolume { return cached }
+            return coordinator.cachedDDCVolume(for: device) ?? 0
+        }
+        // Software device: CoreAudio reads are cheap, so always read fresh to
+        // avoid drift from changes made elsewhere.
         return audio.volume(device.id) ?? 0
     }
 

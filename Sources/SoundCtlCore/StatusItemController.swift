@@ -44,9 +44,19 @@ final class StatusItemController {
         hwVolume.onVolumeChanged = { [weak self] value, muted in
             self?.updateIcon(value: value, muted: muted)
         }
+        coordinator.onDDCVolumeRefreshed = { [weak self] _ in
+            guard let self else { return }
+            if self.panel.isShown { self.model.refreshVolumeOnly() } else { self.refreshIcon() }
+        }
+        ddc.onDisplaysChanged = { [weak self] in
+            guard let self else { return }
+            self.seedDDCVolume()
+            if self.panel.isShown { self.model.reload() } else { self.refreshIcon() }
+        }
 
         audio.onDeviceListChange = { [weak self] in
             guard let self else { return }
+            self.seedDDCVolume()
             if self.panel.isShown { self.model.reload() } else { self.refreshIcon() }
         }
         audio.onVolumeChange = { [weak self] in
@@ -54,6 +64,7 @@ final class StatusItemController {
             if self.panel.isShown { self.model.refreshVolumeOnly() } else { self.refreshIcon() }
         }
 
+        seedDDCVolume()
         refreshIcon()
 
         // Scroll the wheel over the menu-bar icon to change volume (like the
@@ -89,16 +100,27 @@ final class StatusItemController {
         }
     }
 
-    private var permissionTimer: Timer?
+    private var accessibilityObserver: NSObjectProtocol?
 
+    /// Install the volume-key tap, retrying *event-driven* (not by polling): when
+    /// Accessibility is granted macOS posts `com.apple.accessibility.api`, and we
+    /// also retry when the app becomes active or the menu is opened.
     private func beginVolumeKeys() {
         if hwVolume.start() { return }
-        permissionTimer?.invalidate()
-        permissionTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
-            guard let self else { timer.invalidate(); return }
-            if self.hwVolume.isActive || self.hwVolume.start() {
-                timer.invalidate()
+        accessibilityObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.apple.accessibility.api"),
+            object: nil, queue: .main) { [weak self] _ in
+            guard let self, !self.hwVolume.isActive else { return }
+            if self.hwVolume.start(), let observer = self.accessibilityObserver {
+                DistributedNotificationCenter.default().removeObserver(observer)
+                self.accessibilityObserver = nil
             }
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil, queue: .main) { [weak self] _ in
+            guard let self, !self.hwVolume.isActive else { return }
+            _ = self.hwVolume.start()
         }
     }
 
@@ -114,6 +136,12 @@ final class StatusItemController {
     }
 
     // MARK: - Icon
+
+    private func seedDDCVolume() {
+        if let device = audio.defaultDevice {
+            coordinator.refreshDDCVolume(for: device)
+        }
+    }
 
     private func refreshIcon() {
         guard let device = audio.defaultDevice else {

@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "SoundCtl",
     platforms: [
-        .macOS(.v13)
+        .macOS("26.0")
     ],
     targets: [
         .target(

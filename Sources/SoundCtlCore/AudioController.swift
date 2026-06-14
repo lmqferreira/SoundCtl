@@ -137,8 +137,9 @@ final class AudioController {
                 mElement: kAudioObjectPropertyElementMain)
             var id: AudioDeviceID = 0
             var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-            AudioObjectGetPropertyData(
+            let status = AudioObjectGetPropertyData(
                 AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
+            guard status == noErr else { return 0 }
             return id
         }
         set {
@@ -306,6 +307,23 @@ final class AudioController {
             AudioObjectAddPropertyListenerBlock(
                 AudioObjectID(kAudioObjectSystemObject), &addr, listenerQueue, systemListenerBlock)
         }
+    }
+
+    private func removeSystemListeners() {
+        for selector in [kAudioHardwarePropertyDevices,
+                         kAudioHardwarePropertyDefaultOutputDevice] {
+            var addr = AudioObjectPropertyAddress(
+                mSelector: selector,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain)
+            AudioObjectRemovePropertyListenerBlock(
+                AudioObjectID(kAudioObjectSystemObject), &addr, listenerQueue, systemListenerBlock)
+        }
+    }
+
+    deinit {
+        removeSystemListeners()
+        removeDeviceListeners(for: observedDeviceID)
     }
 
     private func installDeviceListeners(for id: AudioDeviceID) {

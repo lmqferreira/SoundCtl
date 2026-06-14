@@ -42,7 +42,13 @@ struct SoundPopoverView: View {
 
             ForEach(model.devices) { device in
                 DeviceRowView(item: device, selected: device.id == model.selectedID)
+                    .contentShape(Rectangle())
                     .onTapGesture { model.select(device.id) }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(device.name)
+                    .accessibilityHint("Set as sound output")
+                    .accessibilityAddTraits(device.id == model.selectedID ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAction { model.select(device.id) }
             }
 
             Divider().padding(.horizontal, 13).padding(.top, 4)
@@ -50,6 +56,10 @@ struct SoundPopoverView: View {
             SettingsRowView { model.openSettings() }
                 .padding(.top, 4)
                 .padding(.bottom, 7)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Sound Settings")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { model.openSettings() }
         }
         .frame(width: Self.contentWidth, alignment: .leading)
         .noFocusEffect()
@@ -62,6 +72,9 @@ struct SoundPopoverView: View {
                 .frame(width: 20)
                 .contentShape(Rectangle())
                 .onTapGesture { model.step(isLeftSpeaker: true) }
+                .accessibilityLabel("Decrease volume")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { model.step(isLeftSpeaker: true) }
 
             Slider(value: Binding(get: { model.volume }, set: { model.setVolume($0) }),
                    in: 0...1,
@@ -70,12 +83,16 @@ struct SoundPopoverView: View {
                    })
                 .controlSize(.small)
                 .disabled(!model.enabled)
+                .accessibilityLabel("Volume")
 
             Image(systemName: model.rightGlyphSymbol)
                 .font(.system(size: 15))
                 .frame(width: 24)
                 .contentShape(Rectangle())
                 .onTapGesture { model.step(isLeftSpeaker: false) }
+                .accessibilityLabel("Increase volume")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { model.step(isLeftSpeaker: false) }
         }
         .foregroundStyle(flankColor)
         .frame(height: 24)

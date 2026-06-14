@@ -43,6 +43,11 @@ final class PopoverModel: ObservableObject {
         audio.refreshDevices()
         devices = audio.devices.map { DeviceItem(id: $0.id, name: $0.name, symbol: $0.iconSymbol) }
         selectedID = audio.defaultOutputDeviceID
+        // Kick an async DDC read so the slider settles on the real level shortly
+        // after open (the cached value renders immediately, no blocking).
+        if let device = audio.defaultDevice {
+            coordinator.refreshDDCVolume(for: device)
+        }
         refreshVolumeOnly()
     }
 
